@@ -1,6 +1,6 @@
 name: Windows Build
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 env:
   BUILD_TYPE: Release
@@ -127,10 +127,8 @@ jobs:
     - name: Test
       working-directory: ${{runner.workspace}}/build
       run: cmake --build . --target check
-
-    - name: Deploy
-      working-directory: ${{runner.workspace}}/build
-      env:
-        VGC_GITHUB_KEY: ${{secrets.VGC_GITHUB_KEY}}
-        VGC_CODESIGN_URL: ${{secrets.VGC_CODESIGN_URL}}
-      run: cmake --build . --target deploy
+      
+    - name: Upload a Build
+      uses: actions/upload-artifact@v3
+      with: 
+        path: ${{runner.workspace}}/build
