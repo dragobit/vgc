@@ -128,6 +128,10 @@ jobs:
       working-directory: ${{runner.workspace}}/build
       run: cmake --build . --target check
       
+    - name: Make installer
+      working-directory: ${{runner.workspace}}/build
+      run: cmake --build . --target deploy
+      
     - name: Upload a Build
       uses: actions/upload-artifact@v3
       with: 
