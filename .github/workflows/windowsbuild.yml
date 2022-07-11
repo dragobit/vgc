@@ -1,6 +1,6 @@
 name: Windows Build
 
-on: [push, pull_request]
+on: [push, pull_request, workflow_dispatch]
 
 env:
   BUILD_TYPE: Release
@@ -103,10 +103,10 @@ jobs:
     #   commit ID of vcpkg.json file changes.
     # - Set $VCPKG_ROOT as the location where vcpkg was installed
     - name: Install vcpkg dependencies
-      uses: lukka/run-vcpkg@v10.1
+      uses: lukka/run-vcpkg@v10
       with:
         vcpkgDirectory: ${{github.workspace}}/vcpkg
-        vcpkgGitCommitId: 8518284c18b9f47b1ccae804cb68694181b780a8
+        vcpkgGitCommitId: 14e7bb4ae24616ec54ff6b2f6ef4e8659434ea44 # 2022.05.10
         vcpkgJsonGlob: 'vcpkg.json'
 
     - name: Setup Developer Command Prompt for VS
@@ -118,7 +118,7 @@ jobs:
         mkdir build
         cd build
         cmake --version
-        cmake "$GITHUB_WORKSPACE" -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVGC_COMMIT_BRANCH="$COMMIT_BRANCH" -DPython_ROOT_DIR="$pythonLocation" -DQt5_DIR="$Qt5Location/lib/cmake/Qt5" -DWiX="$WIX"
+        cmake "$GITHUB_WORKSPACE" -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" -DVGC_COMMIT_BRANCH="$COMMIT_BRANCH" -DPython_ROOT_DIR="$pythonLocation" -DQt5_DIR="$Qt5Location/lib/cmake/Qt5" -DWiX="$WIX" -DVGC_PEDANTIC=ON -DVGC_WERROR=ON
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
@@ -127,10 +127,12 @@ jobs:
     - name: Test
       working-directory: ${{runner.workspace}}/build
       run: cmake --build . --target check
-
-    - name: Deploy
+      
+    - name: Make installer
       working-directory: ${{runner.workspace}}/build
-      env:
-        VGC_GITHUB_KEY: ${{secrets.VGC_GITHUB_KEY}}
-        VGC_CODESIGN_URL: ${{secrets.VGC_CODESIGN_URL}}
       run: cmake --build . --target deploy
+      
+    - name: Upload a Build
+      uses: actions/upload-artifact@v3
+      with: 
+        path: ${{runner.workspace}}/build
