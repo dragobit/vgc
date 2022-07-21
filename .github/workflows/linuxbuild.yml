@@ -112,6 +112,10 @@ jobs:
 
     - name: Deploy
       working-directory: ${{runner.workspace}}/build
-      env:
-        VGC_GITHUB_KEY: ${{secrets.VGC_GITHUB_KEY}}
       run: cmake --build . --target deploy --parallel $PARALLEL_JOBS
+
+    - name: Upload a Build
+      uses: actions/upload-artifact@v3
+      with: 
+        path: ${{runner.workspace}}/build/deploy/Release
+    
