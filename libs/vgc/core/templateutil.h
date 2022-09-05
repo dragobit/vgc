@@ -21,50 +21,56 @@
 #include <iterator>
 #include <tuple>
 #include <type_traits>
+#include <utility>
+
+// clang-format off
 
 namespace vgc::core {
 
-namespace internal {
+namespace detail {
 
 // Allows to inline SFINAE-based tests on the given type `ArgType`.
 // See VGC_CONSTEXPR_IS_ID_ADDRESSABLE_IN_CLASS_ for an example.
 //
 template<typename ArgType>
 struct LambdaSfinae {
-    static constexpr bool check(...) { return false; }
-    template <class Lambda>
+
+    static constexpr bool check(...) {
+        return false;
+    }
+
+    template<class Lambda>
     static constexpr auto check(Lambda lambda)
         -> decltype(lambda(std::declval<ArgType>()), bool{}) {
+
         return true;
     }
 };
 
-} // namespace internal
+} // namespace detail
 
 /// Evaluates at compile-time whether `&cls::id` is a valid expression.
 ///
-#define VGC_CONSTEXPR_IS_ID_ADDRESSABLE_IN_CLASS(cls, id)                           \
-    ::vgc::core::internal::LambdaSfinae<cls*>::check(                               \
-        [](auto* v)                                                                 \
-            -> std::void_t<decltype(&std::remove_pointer_t<decltype(v)>::id)> {     \
-        })
+#define VGC_CONSTEXPR_IS_ID_ADDRESSABLE_IN_CLASS(cls, id)                                \
+    ::vgc::core::detail::LambdaSfinae<cls*>::check(                                    \
+        [](auto* v) -> std::void_t<decltype(&std::remove_pointer_t<decltype(v)>::id)> {  \
+    })
 
 /// Evaluates at compile-time whether `cls::tname` is a valid type.
 ///
-#define VGC_CONSTEXPR_IS_TYPE_DECLARED_IN_CLASS(cls, tname)                         \
-    ::vgc::core::internal::LambdaSfinae<cls*>::check(                               \
-        [](auto* v)                                                                 \
-            -> std::void_t<typename std::remove_pointer_t<decltype(v)>::tname> {    \
-        })
+#define VGC_CONSTEXPR_IS_TYPE_DECLARED_IN_CLASS(cls, tname)                              \
+    ::vgc::core::detail::LambdaSfinae<cls*>::check(                                    \
+        [](auto* v) -> std::void_t<typename std::remove_pointer_t<decltype(v)>::tname> { \
+    })
 
-namespace internal {
+namespace detail {
 
 template<typename U>
 struct TypeIdentity_ {
     using type = U;
 };
 
-} // namespace internal
+} // namespace detail
 
 /// Allows to specify that a given function parameter should not be used for
 /// template argument deduction.
@@ -93,7 +99,15 @@ struct TypeIdentity_ {
 /// is convertible to `int`.
 ///
 template<typename U>
-using TypeIdentity = typename internal::TypeIdentity_<U>::type;
+using TypeIdentity = typename detail::TypeIdentity_<U>::type;
+
+/// Casts a class enum value to its underlying type.
+/// Equivalent to `return static_cast<std::underlying_type_t<Enum>>(e);`.
+///
+template<typename Enum>
+constexpr std::underlying_type_t<Enum> toUnderlying(Enum e) noexcept {
+    return static_cast<std::underlying_type_t<Enum>>(e);
+}
 
 /// Removes cv-qualifiers (const and volatile) and ref-qualifiers (lvalue and
 /// rvalue references) of the given type.
@@ -182,7 +196,7 @@ using Requires = std::enable_if_t<B>;
 ///
 #define VGC_REQUIRES(...) std::enable_if_t<(__VA_ARGS__), int> = 0
 
-namespace internal {
+namespace detail {
 
 // Note: we write our own implementation of std::void_t because it doesn't
 // properly SFINAE on some versions of Clang and produces redefinition errors.
@@ -192,7 +206,7 @@ struct MakeVoid {
     using type = void;
 };
 
-} // namespace internal
+} // namespace detail
 
 /// If any of the given template arguments are ill-formed, then `RequiresValid<...>`
 /// is also ill-formed. Otherwise, `RequiresValid<...>` is an alias for `void`.
@@ -203,15 +217,15 @@ struct MakeVoid {
 /// `RequiresValid<...>` is equivalent to `std::void_t<...>`.
 ///
 template<typename... Ts>
-using RequiresValid = typename internal::MakeVoid<Ts...>::type;
+using RequiresValid = typename detail::MakeVoid<Ts...>::type;
 
-namespace internal {
+namespace detail {
 
 template<std::size_t I, typename... T, std::size_t... Is>
 constexpr std::tuple<std::tuple_element_t<I + Is, std::tuple<T...>>...>
 SubPackAsTuple_(std::index_sequence<Is...>);
 
-} // namespace internal
+} // namespace detail
 
 /// Alias template for `std::tuple<Ti, ..., Tj>`, where `Ti`, ..., `Tj` are the
 /// `N` consecutives types starting at index `I` from the given parameter pack
@@ -225,15 +239,16 @@ SubPackAsTuple_(std::index_sequence<Is...>);
 /// \sa `SubTuple<I, N, Tuple>`
 ///
 template<size_t I, size_t N, typename... T>
-using SubPackAsTuple = decltype(internal::SubPackAsTuple_<I, T...>(std::make_index_sequence<N>{}));
+using SubPackAsTuple =
+    decltype(detail::SubPackAsTuple_<I, T...>(std::make_index_sequence<N>{}));
 
-namespace internal {
+namespace detail {
 
 template<std::size_t I, typename Tuple, std::size_t... Is>
 constexpr std::tuple<std::tuple_element_t<I + Is, Tuple>...>
 SubTuple_(std::index_sequence<Is...>);
 
-} // namespace internal
+} // namespace detail
 
 /// Alias template for `std::tuple<Ti, ..., Tj>`, where `Ti`, ..., `Tj` are the
 /// `N` consecutives types starting at index `I` from the given tuple
@@ -247,7 +262,7 @@ SubTuple_(std::index_sequence<Is...>);
 /// \sa `SubPackAsTuple<I, N, T...>`
 ///
 template<size_t I, size_t N, typename Tuple>
-using SubTuple = decltype(internal::SubTuple_<I, Tuple>(std::make_index_sequence<N>{}));
+using SubTuple = decltype(detail::SubTuple_<I, Tuple>(std::make_index_sequence<N>{}));
 
 /// Type trait that checks whether the type `T` is among `Us...`.
 ///
@@ -268,7 +283,7 @@ struct IsAmong : std::disjunction<std::is_same<T, Us>...> {};
 template<typename T, typename... Us>
 inline constexpr bool isAmong = IsAmong<T, Us...>::value;
 
-namespace internal {
+namespace detail {
 
 template<class F, class ArgsTuple, std::size_t... Is>
 constexpr decltype(auto) applyPartial_(F&& f, ArgsTuple&& t, std::index_sequence<Is...>) {
@@ -277,7 +292,7 @@ constexpr decltype(auto) applyPartial_(F&& f, ArgsTuple&& t, std::index_sequence
         std::get<Is>(std::forward<ArgsTuple>(t))...);
 }
 
-} // namespace internal
+} // namespace detail
 
 /// Invokes the function `f` with the first `N` arguments in the tuple `t`.
 ///
@@ -294,7 +309,7 @@ constexpr decltype(auto) applyPartial_(F&& f, ArgsTuple&& t, std::index_sequence
 ///
 template<size_t N, class F, class ArgsTuple>
 constexpr decltype(auto) applyPartial(F&& f, ArgsTuple&& t) {
-    return internal::applyPartial_(
+    return detail::applyPartial_(
         std::forward<F>(f),
         std::forward<ArgsTuple>(t),
         std::make_index_sequence<N>{});
@@ -347,12 +362,12 @@ struct CallSignatureTraits<R (Args...)> {
     static constexpr size_t arity = sizeof...(Args);
 };
 
-namespace internal {
+namespace detail {
 
 template<typename R, typename... Args>
 struct FreeFunctionTraitsDef : CallSignatureTraits<R (Args...)> {};
 
-} // namespace internal
+} // namespace detail
 
 /// Assuming `T` is a free function type of the form:
 ///
@@ -397,17 +412,22 @@ template<typename T>
 struct FreeFunctionTraits;
 
 template<typename R, typename... Args>
-struct FreeFunctionTraits<R (*)(Args...)> :
-    internal::FreeFunctionTraitsDef<R, Args...> {};
+struct FreeFunctionTraits<R (*)(Args...)>
+    : detail::FreeFunctionTraitsDef<R, Args...> {};
 
 template<typename R, typename... Args>
-struct FreeFunctionTraits<R (Args...)> :
-    internal::FreeFunctionTraitsDef<R, Args...> {};
+struct FreeFunctionTraits<R (Args...)>
+    : detail::FreeFunctionTraitsDef<R, Args...> {};
 
-namespace internal {
+namespace detail {
 
-template<typename TMethodType, typename TClass, typename TThis,
-         bool IsConst, typename R, typename... Args>
+template<
+    typename TMethodType,
+    typename TClass,
+    typename TThis,
+    bool IsConst,
+    typename R,
+    typename... Args>
 struct MethodTraitsDef : CallSignatureTraits<R (Args...)> {
     using MethodType = TMethodType;
     using Class = TClass;
@@ -415,7 +435,7 @@ struct MethodTraitsDef : CallSignatureTraits<R (Args...)> {
     static constexpr bool isConst = IsConst;
 };
 
-} // namespace internal
+} // namespace detail
 
 /// Assuming `T` is a (pointer to member) method type that has one of the
 /// four following forms:
@@ -482,38 +502,31 @@ template<typename T>
 struct MethodTraits;
 
 template<typename R, typename C, typename... Args>
-struct MethodTraits<R (C::*)(Args...)> :
-    internal::MethodTraitsDef<
-        R (C::*)(Args...),
-        C, C*, false, R, Args...> {};
+struct MethodTraits<R (C::*)(Args...)>
+    : detail::MethodTraitsDef<
+        R (C::*)(Args...), C, C*, false, R, Args...> {};
 
 template<typename R, typename C, typename... Args>
-struct MethodTraits<R (C::*)(Args...) &> :
-    internal::MethodTraitsDef<
-        R (C::*)(Args...) &,
-        C, C*, false, R, Args...> {};
+struct MethodTraits<R (C::*)(Args...)&>
+    : detail::MethodTraitsDef<
+        R (C::*)(Args...)&, C, C*, false, R, Args...> {};
 
 template<typename R, typename C, typename... Args>
-struct MethodTraits<R (C::*)(Args...) const> :
-    internal::MethodTraitsDef<
-        R (C::*)(Args...) const,
-        C, const C*, true, R, Args...> {};
+struct MethodTraits<R (C::*)(Args...) const>
+    : detail::MethodTraitsDef<
+        R (C::*)(Args...) const, C, const C*, true, R, Args...> {};
 
 template<typename R, typename C, typename... Args>
-struct MethodTraits<R (C::*)(Args...) const&> :
-    internal::MethodTraitsDef<
-        R (C::*)(Args...) const&,
-        C, const C*, true, R, Args...> {};
+struct MethodTraits<R (C::*)(Args...) const&>
+    : detail::MethodTraitsDef<
+        R (C::*)(Args...) const&, C, const C*, true, R, Args...> {};
 
-namespace internal {
+namespace detail {
 
 template<typename TCallOperator>
-struct FunctorTraitsDef : MethodTraits<TCallOperator> {
+struct FunctorTraitsDef : MethodTraits<TCallOperator> {};
 
-
-};
-
-} // namespace internal
+} // namespace detail
 
 /// Assuming `T` is a class with one (and only one) operator() method (its
 /// "call operator"), then the struct `FunctorTraits<T>` provides the same
@@ -560,8 +573,8 @@ template<typename T, typename SFINAE = void>
 struct FunctorTraits;
 
 template<typename T>
-struct FunctorTraits<T, RequiresValid<decltype(&T::operator())>> :
-    MethodTraits<decltype(&T::operator())> {};
+struct FunctorTraits<T, RequiresValid<decltype(&T::operator())>>
+    : MethodTraits<decltype(&T::operator())> {};
 
 /// Enumeration of the different kinds of callable.
 ///
@@ -599,32 +612,32 @@ template<typename T, typename SFINAE = void>
 struct CallableTraits;
 
 template<typename T>
-struct CallableTraits<T, RequiresValid<
-        typename FreeFunctionTraits<T>::ReturnType>> : FreeFunctionTraits<T> {
+struct CallableTraits<T, RequiresValid<typename FreeFunctionTraits<T>::ReturnType>>
+    : FreeFunctionTraits<T> {
     static constexpr CallableKind kind = CallableKind::FreeFunction;
 };
 
 template<typename T>
-struct CallableTraits<T, RequiresValid<
-        typename MethodTraits<T>::ReturnType>> : MethodTraits<T> {
+struct CallableTraits<T, RequiresValid<typename MethodTraits<T>::ReturnType>>
+    : MethodTraits<T> {
     static constexpr CallableKind kind = CallableKind::Method;
 };
 
 template<typename T>
-struct CallableTraits<T, RequiresValid<
-        typename FunctorTraits<T>::ReturnType>> : FunctorTraits<T> {
+struct CallableTraits<T, RequiresValid<typename FunctorTraits<T>::ReturnType>>
+    : FunctorTraits<T> {
     static constexpr CallableKind kind = CallableKind::Functor;
 };
 
 /// Type trait for `isFreeFunction<T>`.
 ///
 template<typename T, typename SFINAE = void>
-struct IsFreeFunction : std::false_type {};
+struct IsFreeFunction
+    : std::false_type {};
 
 template<typename T>
-struct IsFreeFunction<T, Requires<
-        CallableTraits<T>::kind == CallableKind::FreeFunction>> :
-    std::true_type {};
+struct IsFreeFunction<T, Requires<CallableTraits<T>::kind == CallableKind::FreeFunction>>
+    : std::true_type {};
 
 /// Checks whether the given type `T` is a free function
 /// pointer type or a call signature.
@@ -640,9 +653,8 @@ template<typename T, typename SFINAE = void>
 struct IsMethod : std::false_type {};
 
 template<typename T>
-struct IsMethod<T, Requires<
-        CallableTraits<T>::kind == CallableKind::Method>> :
-    std::true_type {};
+struct IsMethod<T, Requires<CallableTraits<T>::kind == CallableKind::Method>>
+    : std::true_type {};
 
 /// Checks whether the given type `T` is a pointer to member
 /// method.
@@ -661,9 +673,8 @@ template<typename T, typename SFINAE = void>
 struct IsFunctor : std::false_type {};
 
 template<typename T>
-struct IsFunctor<T, Requires<
-        CallableTraits<T>::kind == CallableKind::Functor>> :
-    std::true_type {};
+struct IsFunctor<T, Requires<CallableTraits<T>::kind == CallableKind::Functor>>
+    : std::true_type {};
 
 /// Checks whether the given type `T` is a functor.
 ///
@@ -681,9 +692,8 @@ template<typename T, typename SFINAE = void>
 struct IsCallable : std::false_type {};
 
 template<typename T>
-struct IsCallable<T, RequiresValid<
-        typename CallableTraits<T>::CallSignature>> :
-    std::true_type {};
+struct IsCallable<T, RequiresValid<typename CallableTraits<T>::CallSignature>>
+    : std::true_type {};
 
 /// Checks whether the given type `T` is callable, that is, whether it is a
 /// free function, a method, or a functor.
@@ -693,7 +703,7 @@ struct IsCallable<T, RequiresValid<
 template<typename T>
 inline constexpr bool isCallable = IsCallable<T>::value;
 
-namespace internal {
+namespace detail {
 
 template<template<typename...> typename Base, typename... Ts>
 std::true_type testIsConvertibleToTemplateBasePointer(const volatile Base<Ts...>*);
@@ -702,20 +712,20 @@ template<template<typename...> typename Base>
 std::false_type testIsConvertibleToTemplateBasePointer(const volatile void*);
 
 template<template<typename...> typename Base, typename Derived>
-auto testIsTemplateBaseOf(int) -> decltype(
-        testIsConvertibleToTemplateBasePointer<Base>(static_cast<Derived*>(nullptr)));
+auto testIsTemplateBaseOf(int) -> decltype(testIsConvertibleToTemplateBasePointer<Base>(
+    static_cast<Derived*>(nullptr)));
 
 template<template<typename...> typename Base, typename Derived>
 auto testIsTemplateBaseOf(...) -> std::true_type; // inaccessible base
 
-} // namespace internal
+} // namespace detail
 
 /// Type trait for `isTemplateBaseOf<Base, Derived>`.
 ///
 template<template<typename...> typename Base, typename Derived>
 struct IsTemplateBaseOf : std::bool_constant<
-        std::is_class_v<Derived> &&
-        decltype(internal::testIsTemplateBaseOf<Base, Derived>(0))::value> {};
+    std::is_class_v<Derived>
+    && decltype(detail::testIsTemplateBaseOf<Base, Derived>(0))::value> {};
 
 /// Checks whether `Base` is a class template and `Derived` is a subclass of
 /// `Based<Args...>` for some `Args...`.
@@ -742,10 +752,8 @@ template<typename T, typename SFINAE = void>
 struct IsUnsignedInteger : std::false_type {};
 
 template<typename T>
-struct IsUnsignedInteger<T, Requires<
-        std::is_integral_v<T> &&
-        std::is_unsigned_v<T>>> :
-    std::true_type {};
+struct IsUnsignedInteger<T, Requires<std::is_integral_v<T> && std::is_unsigned_v<T>>>
+    : std::true_type {};
 
 /// Checks whether `T` is an unsigned integer type.
 ///
@@ -762,10 +770,8 @@ template<typename T, typename SFINAE = void>
 struct IsSignedInteger : std::false_type {};
 
 template<typename T>
-struct IsSignedInteger<T, Requires<
-        std::is_integral_v<T> &&
-        std::is_signed_v<T>>> :
-    std::true_type {};
+struct IsSignedInteger<T, Requires<std::is_integral_v<T> && std::is_signed_v<T>>>
+    : std::true_type {};
 
 /// Checks whether `T` is a signed integer type.
 ///
@@ -783,10 +789,10 @@ struct IsInputIterator : std::false_type {};
 
 template<typename T>
 struct IsInputIterator<T, Requires<
-        std::is_convertible_v<
-            typename std::iterator_traits<T>::iterator_category,
-            std::input_iterator_tag>>> :
-    std::true_type {};
+    std::is_convertible_v<
+        typename std::iterator_traits<T>::iterator_category,
+        std::input_iterator_tag>>>
+    : std::true_type {};
 
 /// Checks whether `T` satisfies the concept of input iterator.
 ///
@@ -802,10 +808,10 @@ struct IsForwardIterator : std::false_type {};
 
 template<typename T>
 struct IsForwardIterator<T, Requires<
-        std::is_convertible_v<
-            typename std::iterator_traits<T>::iterator_category,
-            std::forward_iterator_tag>>> :
-    std::true_type {};
+    std::is_convertible_v<
+        typename std::iterator_traits<T>::iterator_category,
+        std::forward_iterator_tag>>>
+    : std::true_type {};
 
 /// Checks whether `T` satisfies the concept of forward iterator.
 ///
@@ -821,9 +827,9 @@ struct IsRange : std::false_type {};
 
 template<typename T>
 struct IsRange<T, Requires<
-        isForwardIterator<decltype(std::declval<T>().begin())> &&
-        isForwardIterator<decltype(std::declval<T>().end())>>> :
-    std::true_type {};
+        isForwardIterator<decltype(std::declval<T>().begin())>
+        && isForwardIterator<decltype(std::declval<T>().end())>>>
+    : std::true_type {};
 
 /// Checks whether `T` satisfies the concept of range, that is, whether it has
 /// `T::begin()` and `T::end()` and they return forward iterators.
@@ -834,5 +840,7 @@ template<typename T>
 inline constexpr bool isRange = IsRange<T>::value;
 
 } // namespace vgc::core
+
+// clang-format on
 
 #endif // VGC_CORE_TEMPLATEUTIL_H

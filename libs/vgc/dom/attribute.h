@@ -22,8 +22,7 @@
 #include <vgc/dom/api.h>
 #include <vgc/dom/value.h>
 
-namespace vgc {
-namespace dom {
+namespace vgc::dom {
 
 /// \class vgc::dom::AuthoredAttribute
 /// \brief Holds the data of an authored attribute.
@@ -32,10 +31,9 @@ class VGC_DOM_API AuthoredAttribute {
 public:
     /// Creates an authored attribute.
     ///
-    AuthoredAttribute(core::StringId name, const Value& value) :
-        name_(name),
-        value_(value) {
-
+    AuthoredAttribute(core::StringId name, const Value& value)
+        : name_(name)
+        , value_(value) {
     }
 
     /// Returns the name of this authored attribute.
@@ -73,7 +71,6 @@ private:
     Value value_;
 };
 
-} // namespace dom
-} // namespace vgc
+} // namespace vgc::dom
 
 #endif // VGC_DOM_ATTRIBUTE_H

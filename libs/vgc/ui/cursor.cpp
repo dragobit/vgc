@@ -18,23 +18,18 @@
 
 #include <QGuiApplication>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
-void pushCursor(const QCursor& cursor)
-{
+void pushCursor(const QCursor& cursor) {
     QGuiApplication::setOverrideCursor(cursor);
 }
 
-void changeCursor(const QCursor& cursor)
-{
+void changeCursor(const QCursor& cursor) {
     QGuiApplication::changeOverrideCursor(cursor);
 }
 
-void popCursor()
-{
+void popCursor() {
     QGuiApplication::restoreOverrideCursor();
 }
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui

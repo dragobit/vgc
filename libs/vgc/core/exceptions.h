@@ -117,14 +117,15 @@
 ///
 #if defined(VGC_CORE_COMPILER_CLANG)
 #    define VGC_CORE_EXCEPTIONS_DECLARE_ANCHOR virtual void anchor();
-#    define VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(T) void T::anchor() {}
+#    define VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(T)                                         \
+        void T::anchor() {                                                               \
+        }
 #else
 #    define VGC_CORE_EXCEPTIONS_DECLARE_ANCHOR
 #    define VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(T)
 #endif
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
 /// \class vgc::core::LogicError
 /// \brief Base class for all logic errors
@@ -337,11 +338,15 @@ private:
 public:
     /// Constructs a LogicError with the given \p reason.
     ///
-    explicit LogicError(const std::string& reason) : std::logic_error(reason) {}
+    explicit LogicError(const std::string& reason)
+        : std::logic_error(reason) {
+    }
 
     /// Constructs a LogicError with the given \p reason.
     ///
-    explicit LogicError(const char* reason) : std::logic_error(reason) {}
+    explicit LogicError(const char* reason)
+        : std::logic_error(reason) {
+    }
 };
 
 /// \class vgc::core::NegativeIntegerError
@@ -375,7 +380,9 @@ private:
 public:
     /// Constructs a NegativeIntegerError with the given \p reason.
     ///
-    NegativeIntegerError(const std::string& reason) : LogicError(reason) {}
+    NegativeIntegerError(const std::string& reason)
+        : LogicError(reason) {
+    }
 };
 
 /// \class vgc::core::IndexError
@@ -396,7 +403,9 @@ private:
 public:
     /// Constructs an IndexError with the given \p reason.
     ///
-    IndexError(const std::string& reason) : LogicError(reason) {}
+    IndexError(const std::string& reason)
+        : LogicError(reason) {
+    }
 };
 
 /// \class vgc::core::LengthError
@@ -416,7 +425,9 @@ private:
 public:
     /// Constructs an LengthError with the given \p reason.
     ///
-    LengthError(const std::string& reason) : LogicError(reason) {}
+    LengthError(const std::string& reason)
+        : LogicError(reason) {
+    }
 };
 
 /// \class vgc::core::NullError
@@ -433,18 +444,19 @@ public:
     /// Constructs a NotAliveError informing that the Object \p object is not
     /// alive.
     ///
-    NullError() :
-        LogicError("Null pointer encountered") {}
+    NullError()
+        : LogicError("Null pointer encountered") {
+    }
 };
 
 class Object;
 
-namespace internal {
+namespace detail {
 
 VGC_CORE_API std::string notAliveMsg(const Object* object);
 VGC_CORE_API std::string notAChildMsg(const Object* object, const Object* expectedParent);
 
-} // namespace internal
+} // namespace detail
 
 /// \class vgc::core::NotAliveError
 /// \brief Raised when attempting to use an Object which is not alive.
@@ -462,8 +474,9 @@ public:
     /// Constructs a NotAliveError informing that the Object \p object is not
     /// alive.
     ///
-    NotAliveError(const Object* object) :
-        LogicError(internal::notAliveMsg(object)) {}
+    NotAliveError(const Object* object)
+        : LogicError(detail::notAliveMsg(object)) {
+    }
 };
 
 /// \class vgc::core::NotAChildError
@@ -485,8 +498,9 @@ public:
     /// Constructs a NotAChildError, informing that the given \p object is not a
     /// child of the given \p expectedParent.
     ///
-    NotAChildError(const Object* object, const Object* expectedParent) :
-        LogicError(internal::notAChildMsg(object, expectedParent)) {}
+    NotAChildError(const Object* object, const Object* expectedParent)
+        : LogicError(detail::notAChildMsg(object, expectedParent)) {
+    }
 };
 
 /// \class vgc::core::RuntimeError
@@ -537,11 +551,15 @@ private:
 public:
     /// Constructs a RuntimeError with the given \p reason.
     ///
-    explicit RuntimeError(const std::string& reason) : std::runtime_error(reason) {}
+    explicit RuntimeError(const std::string& reason)
+        : std::runtime_error(reason) {
+    }
 
     /// Constructs a RuntimeError with the given \p reason.
     ///
-    explicit RuntimeError(const char* reason) : std::runtime_error(reason) {}
+    explicit RuntimeError(const char* reason)
+        : std::runtime_error(reason) {
+    }
 };
 
 /// \class vgc::core::ParseError
@@ -562,7 +580,9 @@ private:
 public:
     /// Constructs a ParseError with the given \p reason.
     ///
-    ParseError(const std::string& reason) : RuntimeError(reason) {}
+    ParseError(const std::string& reason)
+        : RuntimeError(reason) {
+    }
 };
 
 /// \class vgc::core::RangeError
@@ -584,7 +604,9 @@ private:
 public:
     /// Constructs a RangeError with the given \p reason.
     ///
-    RangeError(const std::string& reason) : RuntimeError(reason) {}
+    RangeError(const std::string& reason)
+        : RuntimeError(reason) {
+    }
 };
 
 /// \class vgc::core::IntegerOverflowError
@@ -621,7 +643,9 @@ private:
 public:
     /// Constructs a IntegerOverflowError with the given \p reason.
     ///
-    IntegerOverflowError(const std::string& reason) : RangeError(reason) {}
+    IntegerOverflowError(const std::string& reason)
+        : RangeError(reason) {
+    }
 };
 
 /// \class vgc::core::FileError
@@ -638,10 +662,11 @@ private:
 public:
     /// Constructs a FileError with the given \p reason.
     ///
-    FileError(const std::string& reason) : RuntimeError(reason) {}
+    FileError(const std::string& reason)
+        : RuntimeError(reason) {
+    }
 };
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core
 
 #endif // VGC_CORE_EXCEPTIONS_H

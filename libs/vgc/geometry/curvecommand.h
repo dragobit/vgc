@@ -37,19 +37,28 @@ enum class CurveCommandType : UInt8 {
 /// Writes the given CurveCommandType to the output stream.
 ///
 template<typename OStream>
-void write(OStream& out, CurveCommandType c)
-{
+void write(OStream& out, CurveCommandType c) {
     using core::write;
     switch (c) {
-    case CurveCommandType::Close: write(out, "Close"); break;
-    case CurveCommandType::MoveTo: write(out, "MoveTo"); break;
-    case CurveCommandType::LineTo: write(out, "LineTo"); break;
-    case CurveCommandType::QuadraticBezierTo: write(out, "QuadraticBezierTo"); break;
-    case CurveCommandType::CubicBezierTo: write(out, "CubicBezierTo"); break;
+    case CurveCommandType::Close:
+        write(out, "Close");
+        break;
+    case CurveCommandType::MoveTo:
+        write(out, "MoveTo");
+        break;
+    case CurveCommandType::LineTo:
+        write(out, "LineTo");
+        break;
+    case CurveCommandType::QuadraticBezierTo:
+        write(out, "QuadraticBezierTo");
+        break;
+    case CurveCommandType::CubicBezierTo:
+        write(out, "CubicBezierTo");
+        break;
     }
 }
 
-namespace internal {
+namespace detail {
 
 // Stores the type and how to access the parameters of each command. Note that
 // the parameters themselves are stored in a separate DoubleArray (= `data`).
@@ -68,7 +77,7 @@ struct VGC_GEOMETRY_API CurveCommandData {
 
 using CurveCommandDataArray = core::Array<CurveCommandData>;
 
-}
+} // namespace detail
 
 } // namespace vgc::geometry
 

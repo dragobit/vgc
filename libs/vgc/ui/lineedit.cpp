@@ -16,262 +16,441 @@
 
 #include <vgc/ui/lineedit.h>
 
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QKeyEvent>
 
 #include <vgc/core/array.h>
+#include <vgc/core/color.h>
 #include <vgc/core/colors.h>
-#include <vgc/core/performancelog.h>
+#include <vgc/graphics/strings.h>
+#include <vgc/style/types.h>
 #include <vgc/ui/cursor.h>
 #include <vgc/ui/strings.h>
 
-#include <vgc/ui/internal/paintutil.h>
+#include <vgc/ui/detail/paintutil.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
-LineEdit::LineEdit(std::string_view text) :
-    Widget(),
-    text_(""),
-    shapedText_(internal::getDefaultSizedFont(), text_),
-    textCursor_(false, 0),
-    scrollLeft_(0.0f),
-    reload_(true),
-    isHovered_(false),
-    isMousePressed_(false)
-{
-    addStyleClass(strings::LineEdit);
-    setText(text);
+namespace {
+
+void copyToClipboard_(
+    std::string_view text,
+    QClipboard::Mode mode = QClipboard::Clipboard) {
+
+    QClipboard* clipboard = QGuiApplication::clipboard();
+    size_t size = core::clamp(text.size(), 0, core::tmax<int>);
+    QString qtext = QString::fromUtf8(text.data(), static_cast<int>(size));
+    clipboard->setText(qtext, mode);
 }
 
-LineEditPtr LineEdit::create()
-{
-    return LineEditPtr(new LineEdit(""));
-}
-
-LineEditPtr LineEdit::create(std::string_view text)
-{
-    return LineEditPtr(new LineEdit(text));
-}
-
-void LineEdit::setText(std::string_view text)
-{
-    if (text_ != text) {
-        text_ = text;
-        shapedText_.setText(text);
-        reload_ = true;
-        repaint();
+void copyToX11SelectionClipboard_(graphics::RichText* richText) {
+    static bool supportsSelection = QGuiApplication::clipboard()->supportsSelection();
+    if (supportsSelection && richText->hasSelection()) {
+        copyToClipboard_(richText->selectedTextView(), QClipboard::Selection);
     }
 }
 
-void LineEdit::onResize()
-{
+} // namespace
+
+LineEdit::LineEdit(std::string_view text)
+    : Widget()
+    , richText_(graphics::RichText::create()) {
+
+    setFocusPolicy(FocusPolicy::Click | FocusPolicy::Tab);
+    addStyleClass(strings::LineEdit);
+    setText(text);
+    richText_->setParentStylableObject(this);
+}
+
+LineEditPtr LineEdit::create() {
+    return LineEditPtr(new LineEdit(""));
+}
+
+LineEditPtr LineEdit::create(std::string_view text) {
+    return LineEditPtr(new LineEdit(text));
+}
+
+void LineEdit::setText(std::string_view text) {
+    if (text != richText_->text()) {
+        richText_->setText(text);
+        reload_ = true;
+        requestRepaint();
+    }
+}
+
+void LineEdit::moveCursor(graphics::RichTextMoveOperation operation, bool select) {
+    richText_->moveCursor(operation, select);
+    if (select) {
+        copyToX11SelectionClipboard_(richText_.get());
+    }
+    resetSelectionInitialPair_();
+    reload_ = true;
+    requestRepaint();
+}
+
+style::StylableObject* LineEdit::firstChildStylableObject() const {
+    return richText_.get();
+}
+
+style::StylableObject* LineEdit::lastChildStylableObject() const {
+    return richText_.get();
+}
+
+void LineEdit::onResize() {
+
+    namespace gs = graphics::strings;
+
+    // Compute contentRect
+    // TODO: move to Widget::contentRect()
+    float paddingLeft = detail::getLength(this, gs::padding_left);
+    float paddingRight = detail::getLength(this, gs::padding_right);
+    float paddingTop = detail::getLength(this, gs::padding_top);
+    float paddingBottom = detail::getLength(this, gs::padding_bottom);
+    geometry::Rect2f r = rect();
+    geometry::Vec2f pMinOffset(paddingLeft, paddingTop);
+    geometry::Vec2f pMaxOffset(paddingRight, paddingBottom);
+    geometry::Rect2f contentRect(r.pMin() + pMinOffset, r.pMax() - pMaxOffset);
+
+    // Set appropriate size for the RichText
+    richText_->setRect(contentRect);
+
     reload_ = true;
 }
 
-void LineEdit::onPaintCreate(graphics::Engine* engine)
-{
-    triangles_ = engine->createTriangles();
+void LineEdit::onPaintCreate(graphics::Engine* engine) {
+    triangles_ =
+        engine->createDynamicTriangleListView(graphics::BuiltinGeometryLayout::XYRGB);
 }
 
-void LineEdit::onPaintDraw(graphics::Engine*)
-{
+void LineEdit::onPaintDraw(graphics::Engine* engine, PaintOptions /*options*/) {
+
+    namespace gs = graphics::strings;
+
     if (reload_) {
         reload_ = false;
         core::FloatArray a;
-        core::Color backgroundColor = internal::getColor(this, isHovered_ ?
-                        strings::background_color_on_hover :
-                        strings::background_color);
 
-#ifdef VGC_QOPENGL_EXPERIMENT
+        // Draw background
+        core::Color backgroundColor = detail::getColor(this, gs::background_color);
+#if defined(VGC_QOPENGL_EXPERIMENT)
         static core::Stopwatch sw = {};
         auto t = sw.elapsed() * 50.f;
         backgroundColor = core::Color::hsl(t, 0.6f, 0.3f);
 #endif
+        if (backgroundColor.a() > 0) {
+            style::BorderRadiuses borderRadiuses = detail::getBorderRadiuses(this);
+            detail::insertRect(a, backgroundColor, rect(), borderRadiuses);
+        }
 
-        core::Color textColor = internal::getColor(this, strings::text_color);
-        float borderRadius = internal::getLength(this, strings::border_radius);
-        float paddingLeft = internal::getLength(this, strings::padding_left);
-        float paddingRight = internal::getLength(this, strings::padding_right);
-        float textWidth = width() - paddingLeft - paddingRight;
-        graphics::TextProperties textProperties(
-                    graphics::TextHorizontalAlign::Left,
-                    graphics::TextVerticalAlign::Middle);
-        if (hasFocus()) {
-            textCursor_.setVisible(true);
-        }
-        else {
-            textCursor_.setVisible(false);
-        }
-        updateScroll_(textWidth);
-        bool hinting = style(strings::pixel_hinting) == strings::normal;
-        internal::insertRect(a, backgroundColor, 0, 0, width(), height(), borderRadius);
-        internal::insertText(a, textColor, 0, 0, width(), height(), paddingLeft, paddingRight, 0, 0, shapedText_, textProperties, textCursor_, hinting, scrollLeft_);
-        triangles_->load(a.data(), a.length());
+        // Draw text
+        richText_->fill(a);
+
+        // Load triangles data
+        engine->updateVertexBufferData(triangles_, std::move(a));
     }
-    triangles_->draw();
+    engine->setProgram(graphics::BuiltinProgram::Simple);
+    engine->draw(triangles_, -1, 0);
 }
 
-void LineEdit::onPaintDestroy(graphics::Engine*)
-{
+void LineEdit::onPaintDestroy(graphics::Engine*) {
     triangles_.reset();
 }
 
-bool LineEdit::onMouseMove(MouseEvent* event)
-{
-    if (isMousePressed_) {
-        updateBytePosition_(event->pos());
+void LineEdit::extendSelection_(const geometry::Vec2f& point) {
+    Int position = richText_->positionFromPoint(point, mouseSelectionMarkers_);
+    Int beginPosition;
+    Int endPosition;
+    if (position < mouseSelectionInitialPair_.first) {
+        beginPosition = mouseSelectionInitialPair_.second;
+        endPosition = position;
+    }
+    else if (position < mouseSelectionInitialPair_.second) {
+        beginPosition = mouseSelectionInitialPair_.first;
+        endPosition = mouseSelectionInitialPair_.second;
+    }
+    else {
+        beginPosition = mouseSelectionInitialPair_.first;
+        endPosition = position;
+    }
+    richText_->setSelectionStart(beginPosition);
+    richText_->setSelectionEnd(endPosition);
+}
+
+void LineEdit::resetSelectionInitialPair_() {
+    Int position = richText_->selectionStart();
+    mouseSelectionMarkers_ = graphics::TextBoundaryMarker::Grapheme;
+    mouseSelectionInitialPair_ = std::make_pair(position, position);
+}
+
+bool LineEdit::onMouseMove(MouseEvent* event) {
+    if (mouseButton_ == MouseButton::Left) {
+        geometry::Vec2f mousePosition = event->position();
+        geometry::Vec2f mouseOffset = richText_->rect().pMin();
+        geometry::Vec2f point = mousePosition - mouseOffset;
+        extendSelection_(point);
+        reload_ = true;
+        requestRepaint();
     }
     return true;
 }
 
-bool LineEdit::onMousePress(MouseEvent* event)
-{
-    isMousePressed_ = true;
-    setFocus();
-    updateBytePosition_(event->pos());
+bool LineEdit::onMousePress(MouseEvent* event) {
+    // Only support one mouse button at a time
+    if (mouseButton_ != MouseButton::None) {
+        return false;
+    }
+    mouseButton_ = event->button();
+
+    const bool left = mouseButton_ == MouseButton::Left;
+    const bool right = mouseButton_ == MouseButton::Right;
+    const bool middle = mouseButton_ == MouseButton::Middle;
+    const bool shift = event->modifierKeys().has(ModifierKey::Shift);
+
+    // Handle double/triple left click
+    geometry::Vec2f mousePosition = event->position();
+    if (left) {
+        if (numLeftMouseButtonClicks_ > 0
+            && leftMouseButtonStopwatch_.elapsedMilliseconds() < 500
+            && (mousePosition - mousePositionOnPress_).length() < 5) {
+
+            ++numLeftMouseButtonClicks_;
+        }
+        else {
+            numLeftMouseButtonClicks_ = 1;
+        }
+        leftMouseButtonStopwatch_.restart();
+    }
+    else {
+        numLeftMouseButtonClicks_ = 0;
+    }
+    mousePositionOnPress_ = mousePosition;
+
+    // Change cursor position on press of any of the 3 standard mouse buttons
+    if (left || right || middle) {
+        geometry::Vec2f mouseOffset = richText_->rect().pMin();
+        geometry::Vec2f point = mousePosition - mouseOffset;
+        if (left && shift) {
+            extendSelection_(point);
+        }
+        else {
+            // On multiple left clicks, cycle between set cursor / select word / select line
+            Int mod = numLeftMouseButtonClicks_ % 3;
+            if (numLeftMouseButtonClicks_ < 2 || mod == 1) {
+                mouseSelectionMarkers_ = graphics::TextBoundaryMarker::Grapheme;
+                Int position =
+                    richText_->positionFromPoint(point, mouseSelectionMarkers_);
+                mouseSelectionInitialPair_ = {position, position};
+            }
+            else {
+                mouseSelectionMarkers_ =
+                    mod ? graphics::TextBoundaryMarker::Word
+                        : graphics::TextBoundaryMarker::MandatoryLineBreak;
+                mouseSelectionInitialPair_ =
+                    richText_->positionPairFromPoint(point, mouseSelectionMarkers_);
+            }
+            richText_->setSelectionStart(mouseSelectionInitialPair_.first);
+            richText_->setSelectionEnd(mouseSelectionInitialPair_.second);
+        }
+
+        // Middle-button paste on supported platforms (e.g., X11)
+        if (middle) {
+            QClipboard* clipboard = QGuiApplication::clipboard();
+            std::string t = clipboard->text(QClipboard::Selection).toStdString();
+            richText_->insertText(t);
+            resetSelectionInitialPair_();
+        }
+    }
+
+    reload_ = true;
+    requestRepaint();
     return true;
 }
 
-bool LineEdit::onMouseRelease(MouseEvent* /*event*/)
-{
-    isMousePressed_ = false;
+bool LineEdit::onMouseRelease(MouseEvent* event) {
+    // Only support one mouse button at a time
+    if (mouseButton_ != event->button()) {
+        return false;
+    }
+
+    if (mouseButton_ == MouseButton::Left) {
+        copyToX11SelectionClipboard_(richText_.get());
+    }
+
+    mouseButton_ = MouseButton::None;
     return true;
 }
 
-bool LineEdit::onMouseEnter()
-{
+bool LineEdit::onMouseEnter() {
     pushCursor(Qt::IBeamCursor);
     return true;
 }
 
-bool LineEdit::onMouseLeave()
-{
+bool LineEdit::onMouseLeave() {
     popCursor();
     return true;
 }
 
-bool LineEdit::onFocusIn()
-{
+bool LineEdit::onFocusIn(FocusReason) {
+    richText_->setSelectionVisible(true);
+    richText_->setCursorVisible(true);
     reload_ = true;
-    repaint();
+    requestRepaint();
     return true;
 }
 
-bool LineEdit::onFocusOut()
-{
+bool LineEdit::onFocusOut(FocusReason reason) {
+
+    if (reason != FocusReason::Window  //
+        && reason != FocusReason::Menu //
+        && reason != FocusReason::Popup) {
+
+        richText_->clearSelection();
+    }
+    richText_->setCursorVisible(false);
     reload_ = true;
-    repaint();
+    requestRepaint();
+    editingFinished().emit();
     return true;
 }
 
-bool LineEdit::onKeyPress(QKeyEvent* event)
-{
-    int key = event->key();
+bool LineEdit::onKeyPress(QKeyEvent* event) {
+
+    using Op = graphics::RichTextMoveOperation;
+
+    const int key = event->key();
+    const bool ctrl = event->modifiers().testFlag(Qt::ControlModifier);
+    const bool shift = event->modifiers().testFlag(Qt::ShiftModifier);
+
+    bool handled = true;
+    bool needsRepaint = true;
+    bool isMoveOperation = false;
+
+    if (key == Qt::Key_Enter || key == Qt::Key_Return) {
+        needsRepaint = true;
+        editingFinished().emit();
+    }
     if (key == Qt::Key_Delete || key == Qt::Key_Backspace) {
-        Int p1_ = textCursor_.bytePosition();
-        Int p2_ = -1;
-        graphics::TextBoundaryType boundaryType =
-                (event->modifiers().testFlag(Qt::ControlModifier)) ?
-                    graphics::TextBoundaryType::Word :
-                    graphics::TextBoundaryType::Grapheme;
-        graphics::TextBoundaryIterator it(boundaryType, text());
-        it.setPosition(p1_);
         if (key == Qt::Key_Delete) {
-            p2_ = it.toNextBoundary();
+            richText_->deleteFromCursor(ctrl ? Op::NextWord : Op::NextCharacter);
         }
-        else { // Backspace
-            p2_ = p1_;
-            p1_ = it.toPreviousBoundary();
+        else { // backspace
+            richText_->deleteFromCursor(ctrl ? Op::PreviousWord : Op::PreviousCharacter);
         }
-        if (p1_ != -1 && p2_ != -1) {
-            size_t p1 = core::int_cast<size_t>(p1_);
-            size_t p2 = core::int_cast<size_t>(p2_);
-            std::string newText;
-            newText.reserve(text().size() - (p2 - p1));
-            newText.append(text(), 0, p1);
-            newText.append(text(), p2);
-            textCursor_.setBytePosition(p1_);
-            setText(newText);
-        }
-        return true;
     }
     else if (key == Qt::Key_Home) {
-        Int p1 = textCursor_.bytePosition();
-        Int home = 0;
-        if (p1 != home) {
-            textCursor_.setBytePosition(home);
-            reload_ = true;
-            repaint();
-        }
-        return true;
+        richText_->moveCursor(ctrl ? Op::StartOfText : Op::StartOfLine, shift);
+        isMoveOperation = true;
     }
     else if (key == Qt::Key_End) {
-        Int p1 = textCursor_.bytePosition();
-        Int end = core::int_cast<Int>(text().size());
-        if (p1 != end) {
-            textCursor_.setBytePosition(end);
-            reload_ = true;
-            repaint();
-        }
-        return true;
+        richText_->moveCursor(ctrl ? Op::EndOfText : Op::EndOfLine, shift);
+        isMoveOperation = true;
     }
-    else if (key == Qt::Key_Left || key == Qt::Key_Right) {
-        Int p1 = textCursor_.bytePosition();
-        Int p2 = -1;
-        graphics::TextBoundaryType boundaryType =
-                (event->modifiers().testFlag(Qt::ControlModifier)) ?
-                    graphics::TextBoundaryType::Word :
-                    graphics::TextBoundaryType::Grapheme;
-        graphics::TextBoundaryIterator it(boundaryType, text());
-        it.setPosition(p1);
-        if (key == Qt::Key_Left) {
-            p2 = it.toPreviousBoundary();
-        }
-        else { // Right
-            p2 = it.toNextBoundary();
-        }
-        if (p2 != -1 && p1 != p2) {
-            textCursor_.setBytePosition(it.position());
-            reload_ = true;
-            repaint();
-        }
-        return true;
-    }
-    else {
-        std::string t = event->text().toStdString();
-        if (!t.empty()) {
-            size_t p = core::int_cast<size_t>(textCursor_.bytePosition());
-            std::string newText;
-            newText.reserve(text().size() + t.size());
-            newText.append(text(), 0, p);
-            newText.append(t);
-            newText.append(text(), p);
-            textCursor_.setBytePosition(p + t.size());
-            setText(newText);
-            return true;
+    else if (key == Qt::Key_Left) {
+        if (richText_->hasSelection() && !shift) {
+            richText_->moveCursor(Op::LeftOfSelection);
         }
         else {
-            return false;
+            richText_->moveCursor(ctrl ? Op::LeftOneWord : Op::LeftOneCharacter, shift);
+        }
+        isMoveOperation = true;
+    }
+    else if (key == Qt::Key_Right) {
+        if (richText_->hasSelection() && !shift) {
+            richText_->moveCursor(Op::RightOfSelection);
+        }
+        else {
+            richText_->moveCursor(ctrl ? Op::RightOneWord : Op::RightOneCharacter, shift);
+        }
+        isMoveOperation = true;
+    }
+    else if (ctrl && key == Qt::Key_X) {
+        if (richText_->hasSelection()) {
+            copyToClipboard_(richText_->selectedTextView());
+            richText_->deleteSelectedText();
+        }
+        else {
+            needsRepaint = false;
         }
     }
+    else if (ctrl && key == Qt::Key_C) {
+        if (richText_->hasSelection()) {
+            copyToClipboard_(richText_->selectedTextView());
+        }
+        needsRepaint = false;
+    }
+    else if (ctrl && key == Qt::Key_V) {
+        QClipboard* clipboard = QGuiApplication::clipboard();
+        std::string t = clipboard->text().toStdString();
+        richText_->insertText(t);
+    }
+    else if (ctrl && key == Qt::Key_A) {
+        richText_->selectAll();
+    }
+    else if (key == Qt::Key_Escape) {
+        clearFocus(FocusReason::Other);
+        handled = true;
+    }
+    else if (key == Qt::Key_Tab) {
+        handled = false;
+    }
+    else if (!ctrl) {
+        std::string t = event->text().toStdString();
+        bool isControlCharacter = (t.size() == 1) && (t[0] >= 0) && (t[0] < 32);
+        if (!t.empty() && !isControlCharacter) {
+            richText_->insertText(t);
+        }
+        else {
+            handled = false;
+        }
+    }
+    else {
+        handled = false;
+    }
+
+    // X11 selection clipboard
+    if (shift && isMoveOperation) {
+        copyToX11SelectionClipboard_(richText_.get());
+    }
+
+    if (handled && needsRepaint) {
+        resetSelectionInitialPair_();
+        reload_ = true;
+        requestRepaint();
+    }
+
+    if (handled && !isMoveOperation) {
+        textEdited().emit();
+    }
+
+    return handled;
 }
 
-geometry::Vec2f LineEdit::computePreferredSize() const
-{
+geometry::Vec2f LineEdit::computePreferredSize() const {
+
+    namespace gs = graphics::strings;
+
     PreferredSizeType auto_ = PreferredSizeType::Auto;
     PreferredSize w = preferredWidth();
     PreferredSize h = preferredHeight();
+
     geometry::Vec2f res(0, 0);
+    geometry::Vec2f textPreferredSize(0, 0);
+    if (w.type() == auto_ || h.type() == auto_) {
+        textPreferredSize = richText_->preferredSize();
+    }
     if (w.type() == auto_) {
-        res[0] = 100;
-        // TODO: compute appropriate width based on text length
+        float paddingLeft = detail::getLength(this, gs::padding_left);
+        float paddingRight = detail::getLength(this, gs::padding_right);
+        res[0] = textPreferredSize[0] + paddingLeft + paddingRight;
     }
     else {
         res[0] = w.value();
     }
     if (h.type() == auto_) {
-        res[1] = 26;
-        // TODO: compute appropriate height based on font size?
+        float paddingTop = detail::getLength(this, gs::padding_top);
+        float paddingBottom = detail::getLength(this, gs::padding_bottom);
+        res[1] = textPreferredSize[1] + paddingTop + paddingBottom;
     }
     else {
         res[1] = h.value();
@@ -279,47 +458,4 @@ geometry::Vec2f LineEdit::computePreferredSize() const
     return res;
 }
 
-void LineEdit::updateBytePosition_(const geometry::Vec2f& mousePosition)
-{
-    Int bytePosition = bytePosition_(mousePosition);
-    if (bytePosition != textCursor_.bytePosition()) {
-        textCursor_.setBytePosition(bytePosition);
-        reload_ = true;
-        repaint();
-    }
-}
-
-Int LineEdit::bytePosition_(const geometry::Vec2f& mousePosition)
-{
-    float paddingLeft = internal::getLength(this, strings::padding_left);
-    float x = mousePosition[0] - paddingLeft + scrollLeft_;
-    float y = mousePosition[1];
-    return shapedText_.bytePosition(geometry::Vec2f(x, y));
-}
-
-void LineEdit::updateScroll_(float textWidth)
-{
-    float textEndAdvance = shapedText_.advance()[0];
-    float currentTextEndPos = textEndAdvance - scrollLeft_;
-    if (currentTextEndPos < textWidth && scrollLeft_ > 0) {
-        if (textEndAdvance < textWidth) {
-            scrollLeft_ = 0;
-        }
-        else {
-            scrollLeft_ = textEndAdvance - textWidth;
-        }
-    }
-    if (textCursor_.isVisible()) {
-        float cursorAdvance = shapedText_.advance(textCursor_.bytePosition())[0];
-        float currentCursorPos = cursorAdvance - scrollLeft_;
-        if (currentCursorPos < 0) {
-            scrollLeft_ = cursorAdvance;
-        }
-        else if (currentCursorPos > textWidth) {
-            scrollLeft_ = cursorAdvance - textWidth;
-        }
-    }
-}
-
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui

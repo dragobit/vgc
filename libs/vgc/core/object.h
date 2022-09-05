@@ -24,15 +24,14 @@
 #include <vgc/core/arithmetic.h>
 #include <vgc/core/exceptions.h>
 
-#include <vgc/core/internal/signal.h>
+#include <vgc/core/detail/signal.h>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
 class Object;
-using ConnectionHandle = internal::ConnectionHandle;
+using ConnectionHandle = detail::ConnectionHandle;
 
-namespace internal {
+namespace detail {
 
 // This class is befriended by Object to allow ObjPtr<T> to access and modify
 // the refCount, and destruct the object. Please do not use unless in the
@@ -52,7 +51,7 @@ public:
     static void decref(const Object* obj, Int64 k = 1);
 };
 
-} // namespace internal
+} // namespace detail
 
 /// \class ObjPtr<T>
 /// \brief Smart pointer for managing the lifetime of Object instances.
@@ -83,17 +82,16 @@ private:
     struct DontIncRefTag {};
 
     // For move casts
-    ObjPtr(T* obj, DontIncRefTag) : obj_(obj)
-    {
+    ObjPtr(T* obj, DontIncRefTag)
+        : obj_(obj) {
     }
 
 public:
     /// Creates a null ObjPtr<T>, that is, an ObjPtr<T> which doesn't manage any
     /// Object.
     ///
-    ObjPtr() noexcept : obj_(nullptr)
-    {
-
+    ObjPtr() noexcept
+        : obj_(nullptr) {
     }
 
     /// Creates an ObjPtr<T> managing the given Object.
@@ -104,17 +102,18 @@ public:
     /// implementation may implement referencing counting via
     /// separately-allocated counter blocks, whose memory allocation may throw.
     ///
-    ObjPtr(T* obj) : obj_(obj)
-    {
-        internal::ObjPtrAccess::incref(obj_);
+    ObjPtr(T* obj)
+        : obj_(obj) {
+
+        detail::ObjPtrAccess::incref(obj_);
     }
 
     /// Creates a copy of the given ObjPtr<T>.
     ///
-    ObjPtr(const ObjPtr& other) noexcept :
-        obj_(other.obj_)
-    {
-        internal::ObjPtrAccess::incref(obj_);
+    ObjPtr(const ObjPtr& other) noexcept
+        : obj_(other.obj_) {
+
+        detail::ObjPtrAccess::incref(obj_);
     }
 
     /// Creates a copy of the given ObjPtr<Y>. This template overload doesn't
@@ -122,20 +121,19 @@ public:
     /// to T*.
     ///
     template<typename Y, VGC_REQUIRES(isCompatible_<Y>)>
-    ObjPtr(const ObjPtr<Y>& other) noexcept :
-        obj_(other.obj_)
-    {
-        internal::ObjPtrAccess::incref(obj_);
+    ObjPtr(const ObjPtr<Y>& other) noexcept
+        : obj_(other.obj_) {
+
+        detail::ObjPtrAccess::incref(obj_);
     }
 
     /// Assigns the given ObjPtr<T> to this ObjPtr<T>.
     ///
-    ObjPtr& operator=(const ObjPtr& other) noexcept
-    {
-        if(obj_ != other.obj_) {
-            internal::ObjPtrAccess::decref(obj_);
+    ObjPtr& operator=(const ObjPtr& other) noexcept {
+        if (obj_ != other.obj_) {
+            detail::ObjPtrAccess::decref(obj_);
             obj_ = other.obj_;
-            internal::ObjPtrAccess::incref(obj_);
+            detail::ObjPtrAccess::incref(obj_);
         }
         return *this;
     }
@@ -145,20 +143,20 @@ public:
     /// convertible to T*.
     ///
     template<typename Y, VGC_REQUIRES(isCompatible_<Y>)>
-    ObjPtr& operator=(const ObjPtr<Y>& other) noexcept
-    {
-        if(obj_ != other.obj_) {
-            internal::ObjPtrAccess::decref(obj_);
+    ObjPtr& operator=(const ObjPtr<Y>& other) noexcept {
+        if (obj_ != other.obj_) {
+            detail::ObjPtrAccess::decref(obj_);
             obj_ = other.obj_;
-            internal::ObjPtrAccess::incref(obj_);
+            detail::ObjPtrAccess::incref(obj_);
         }
         return *this;
     }
 
     /// Moves the given ObjPtr<T> to a new ObjPtr<T>.
     ///
-    ObjPtr(ObjPtr&& other) noexcept : obj_(other.obj_)
-    {
+    ObjPtr(ObjPtr&& other) noexcept
+        : obj_(other.obj_) {
+
         other.obj_ = nullptr;
     }
 
@@ -167,17 +165,17 @@ public:
     /// convertible to T*.
     ///
     template<typename Y, VGC_REQUIRES(isCompatible_<Y>)>
-    ObjPtr(ObjPtr<Y>&& other) noexcept : obj_(other.obj_)
-    {
+    ObjPtr(ObjPtr<Y>&& other) noexcept
+        : obj_(other.obj_) {
+
         other.obj_ = nullptr;
     }
 
     /// Moves the given ObjPtr<T> to this ObjPtr<T>.
     ///
-    ObjPtr& operator=(ObjPtr&& other) noexcept
-    {
+    ObjPtr& operator=(ObjPtr&& other) noexcept {
         if (*this != other) {
-            internal::ObjPtrAccess::decref(obj_);
+            detail::ObjPtrAccess::decref(obj_);
             obj_ = other.obj_;
             other.obj_ = nullptr;
         }
@@ -189,10 +187,9 @@ public:
     /// convertible to T*.
     ///
     template<typename Y, VGC_REQUIRES(isCompatible_<Y>)>
-    ObjPtr& operator=(ObjPtr<Y>&& other) noexcept
-    {
+    ObjPtr& operator=(ObjPtr<Y>&& other) noexcept {
         if (*this != other) {
-            internal::ObjPtrAccess::decref(obj_);
+            detail::ObjPtrAccess::decref(obj_);
             obj_ = other.obj_;
             other.obj_ = nullptr;
         }
@@ -202,40 +199,35 @@ public:
     /// Destroys this ObjPtr<T>, destroying the managed object if its reference
     /// count reaches zero.
     ///
-    ~ObjPtr()
-    {
-        internal::ObjPtrAccess::decref(obj_);
+    ~ObjPtr() {
+        detail::ObjPtrAccess::decref(obj_);
     }
 
     /// Accesses a member of the object managed by this ObjPtr<T>. Throws
     /// NotAliveError if this ObjPtr is null or references a not-alive Object.
     ///
-    T* operator->() const
-    {
+    T* operator->() const {
         return getAlive_();
     }
 
     /// Returns a reference to the object managed by this ObjPtr<T>. Throws
     /// NotAliveError if this ObjPtr is null or references a not-alive Object.
     ///
-    T& operator*() const
-    {
+    T& operator*() const {
         return *getAlive_();
     }
 
     /// Returns a pointer to the object managed by this ObjPtr<T>. This method
     /// doesn't throw, buy may return a null pointer or a not-alive object.
     ///
-    T* get() const noexcept
-    {
+    T* get() const noexcept {
         return obj_;
     }
 
     /// Returns whether the object managed by this ObjPtr<T> is a non-null and
     /// alive object. This method doesn't throw.
     ///
-    bool isAlive() const noexcept
-    {
+    bool isAlive() const noexcept {
         return obj_ && obj_->isAlive();
     }
 
@@ -243,16 +235,14 @@ public:
     /// alive object. This is equivalent to isAlive(), and is provided for
     /// convenience for use in boolean expression. This method doesn't throw.
     ///
-    operator bool() const noexcept
-    {
+    operator bool() const noexcept {
         return obj_ && obj_->isAlive();
     }
 
     /// Returns the refCount of the object managed by this ObjPtr<T>. Returns
     /// -1 if this ObjPtr<T> is null. This method doesn't throw.
     ///
-    Int64 refCount() const noexcept
-    {
+    Int64 refCount() const noexcept {
         return obj_ ? obj_->refCount() : -1;
     }
 
@@ -263,8 +253,7 @@ private:
     // Throws NotAliveError if this ObjPtr is null or references
     // a not-alive Object.
     //
-    T* getAlive_() const
-    {
+    T* getAlive_() const {
         if (isAlive()) {
             return obj_;
         }
@@ -280,43 +269,36 @@ private:
 /// Returns whether the two given ObjPtrs manage the same object.
 ///
 template<typename T, typename U>
-inline bool operator==(const ObjPtr<T>& a, const ObjPtr<U>& b) noexcept
-{
+inline bool operator==(const ObjPtr<T>& a, const ObjPtr<U>& b) noexcept {
     return a.get() == b.get();
 }
 
 /// Returns whether the two given ObjPtrs manage a different object.
 ///
 template<typename T, typename U>
-inline bool operator!=(const ObjPtr<T>& a, const ObjPtr<U>& b) noexcept
-{
+inline bool operator!=(const ObjPtr<T>& a, const ObjPtr<U>& b) noexcept {
     return a.get() != b.get();
 }
 
-
 template<typename T, typename U>
-ObjPtr<T> static_pointer_cast(const ObjPtr<U>& r) noexcept
-{
+ObjPtr<T> static_pointer_cast(const ObjPtr<U>& r) noexcept {
     return ObjPtr<T>(static_cast<T*>(r.get()));
 }
 
 template<typename T, typename U>
-ObjPtr<T> static_pointer_cast(ObjPtr<U>&& r) noexcept
-{
+ObjPtr<T> static_pointer_cast(ObjPtr<U>&& r) noexcept {
     ObjPtr<T> ret(static_cast<T*>(r.get()), typename ObjPtr<T>::DontIncRefTag{});
     r.obj_ = nullptr;
     return ret;
 }
 
 template<typename T, typename U>
-ObjPtr<T> dynamic_pointer_cast(const ObjPtr<U>& r) noexcept
-{
+ObjPtr<T> dynamic_pointer_cast(const ObjPtr<U>& r) noexcept {
     return ObjPtr<T>(dynamic_cast<T*>(r.get()));
 }
 
 template<typename T, typename U>
-ObjPtr<T> dynamic_pointer_cast(ObjPtr<U>&& r) noexcept
-{
+ObjPtr<T> dynamic_pointer_cast(ObjPtr<U>&& r) noexcept {
     T* p = dynamic_cast<T*>(r.get());
     if (p) {
         r.obj_ = nullptr;
@@ -326,21 +308,18 @@ ObjPtr<T> dynamic_pointer_cast(ObjPtr<U>&& r) noexcept
 }
 
 template<typename T, typename U>
-ObjPtr<T> const_pointer_cast(const ObjPtr<U>& r) noexcept
-{
+ObjPtr<T> const_pointer_cast(const ObjPtr<U>& r) noexcept {
     return ObjPtr<T>(const_cast<T*>(r.get()));
 }
 
 template<typename T, typename U>
-ObjPtr<T> const_pointer_cast(ObjPtr<U>&& r) noexcept
-{
+ObjPtr<T> const_pointer_cast(ObjPtr<U>&& r) noexcept {
     ObjPtr<T> ret(const_cast<T*>(r.get()), typename ObjPtr<T>::DontIncRefTag{});
     r.obj_ = nullptr;
     return ret;
 }
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core
 
 /// This macro should appear within a private section of the class declaration
 /// of any Object subclass.
@@ -353,40 +332,43 @@ ObjPtr<T> const_pointer_cast(ObjPtr<U>&& r) noexcept
 /// };
 /// ```
 ///
-#define VGC_OBJECT(T, S)                                                        \
-    public:                                                                     \
-        using ThisClass = T;                                                    \
-        using SuperClass = S;                                                   \
-        /*static_assert(std::is_base_of_v<SuperClass, ThisClass>,             */\
-        /*    "ThisClass is expected to inherit from SuperClass.");           */\
-        static_assert(::vgc::core::isObject<SuperClass>,                        \
-            "Superclass must inherit from Object and use VGC_OBJECT(..).");     \
-    protected:                                                                  \
-        ~T() = default;                                                         \
-    private:
+#define VGC_OBJECT(T, S)                                                                 \
+public:                                                                                  \
+    using ThisClass = T;                                                                 \
+    using SuperClass = S;                                                                \
+    /*static_assert(std::is_base_of_v<SuperClass, ThisClass>,             */             \
+    /*    "ThisClass is expected to inherit from SuperClass.");           */             \
+    static_assert(                                                                       \
+        ::vgc::core::isObject<SuperClass>,                                               \
+        "Superclass must inherit from Object and use VGC_OBJECT(..).");                  \
+                                                                                         \
+protected:                                                                               \
+    ~T() = default;                                                                      \
+                                                                                         \
+private:
 
 /// This macro ensures that unsafe base protected methods are not accessible in
 /// subclasses. This macro should typically be added to a private section of
 /// direct sublasses of Object, but not to indirect subclasses.
 ///
-#define VGC_PRIVATIZE_OBJECT_TREE_MUTATORS                 \
-    private:                                               \
-        using Object::destroyObject_;                      \
-        using Object::destroyChildObject_;                 \
-        using Object::appendChildObject_;                  \
-        using Object::prependChildObject_;                 \
-        using Object::insertChildObject_;                  \
-        using Object::removeChildObject_;                  \
-        using Object::appendObjectToParent_;               \
-        using Object::prependObjectToParent_;              \
-        using Object::insertObjectToParent_;               \
-        using Object::removeObjectFromParent_;
+#define VGC_PRIVATIZE_OBJECT_TREE_MUTATORS                                               \
+private:                                                                                 \
+    using Object::destroyObject_;                                                        \
+    using Object::destroyChildObject_;                                                   \
+    using Object::appendChildObject_;                                                    \
+    using Object::prependChildObject_;                                                   \
+    using Object::insertChildObject_;                                                    \
+    using Object::removeChildObject_;                                                    \
+    using Object::appendObjectToParent_;                                                 \
+    using Object::prependObjectToParent_;                                                \
+    using Object::insertObjectToParent_;                                                 \
+    using Object::removeObjectFromParent_;
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
 // Forward declaration needed for Object::childObjects()
-template<typename T> class ObjListView;
+template<typename T>
+class ObjListView;
 using ObjectListView = ObjListView<Object>;
 
 // Define the ObjectPtr name alias (we use it in the definition of Object).
@@ -475,39 +457,37 @@ using ObjectPtr = ObjPtr<Object>;
 /// Ownership model
 /// ---------------
 ///
-/// The ownership model of Object instances is a little peculiar: child objects
-/// are uniquely owned by their parent, but the ownership or root objects is
-/// shared among all ObjPtrs referencing them or any of their descendants.
+/// The ownership of root objects is shared among all ObjPtrs referencing them,
+/// but child objects are uniquely owned by their parent.
 ///
-/// One of the main reasons behind this design is to improve interoperability
-/// between C++ (which doesn't have a garbage collector), and Python (which
-/// does have a garbage collector).
+/// This means that if a root object is destroyed, then all its children are
+/// also destroyed, even if there was ObjPtrs referencing these children. This
+/// design make it possible to create data structures with strong hierarchical
+/// invariants. For example, some objects can have a guarantee that, if alive,
+/// they always have a parent.
+///
+/// An ObjPtr to a child object behaves like a weak pointer: it doesn't keep
+/// the child alive, but it keeps some of its memory allocated in order to be
+/// able to check whether it is still alive. When trying to dereference an
+/// ObjPtr whose referenced object has already already been destroyed, a
+/// NotAliveError is raised.
 ///
 /// In Python, all variables bound to VGC objects are using ObjPtrs under the
-/// hood. This ensures that a root object isn't destroyed as long as at least
-/// one of its descendant (including itself) is still referenced:
+/// hood. This ensures that attempting to use a destroyed child in Python never
+/// crashes the program (segmentation fault), but instead raises an exception:
 ///
 /// ```python
 /// root = vgc.ui.Widget()
 /// child = vgc.ui.Widget(root)
-/// root = None     # Both root and child are kept alive
-/// child = None    # Destroys child, then destroys root
+/// root = None        # Both root and child are destroyed
+/// w = child.width()  # NotAlive exception raised
 /// ```
-///
-/// However, note that an ObjPtr referencing a child object doesn't guarantee
-/// that the child object itself is kept alive: it only guarantees that its
-/// root is kept alive. This is because parents have unique ownership of their
-/// children, which means that they have full power to destroy any of their
-/// children if they want to.
-///
-/// When trying to dereference an ObjPtr whose underlying object has already
-/// been destroyed by its parent, a NotAliveError is raised.
 ///
 /// Calling Conventions
 /// -------------------
 ///
-/// Functions manipulating instances of vgc::core::Object should be passed
-/// these objects by raw pointers (that is, unless they participate in
+/// If a function needs an instance of vgc::core::Object as argument, it is
+/// recommended to pass this object by raw pointer (unless they participate in
 /// ownership, which is rare). Unless stated otherwise, any function that takes
 /// an Object* as argument assumes that the following is true:
 ///
@@ -556,37 +536,20 @@ private:
     Object& operator=(Object&&) = delete;
 
 public:
-    /// Returns how many ObjPtrs are currently referencing this Object or any
-    /// of its descendants.
+    /// Returns how many ObjPtrs are currently referencing this Object.
     ///
-    /// Below is an example of an Object tree consisting of 8 Objects, where 6
-    /// ObjPtrs are referencing some Object in the tree. Each `[i]` represents
-    /// an Object whose refCount is `i`.
+    /// If this Object is a root object, then the refCount represents a "strong
+    /// reference count". The root object is kept alive as long as its refCount
+    /// is greater than zero, and the root object is automatically destructed
+    /// when its refCount becomes zero.
     ///
-    /// ```
-    /// [6]         <- ObjPtr
-    ///  ├─[3]
-    ///  │  ├─[1]   <- ObjPtr
-    ///  │  ├─[2]   <- ObjPtr <- ObjPtr
-    ///  │  └─[0]
-    ///  ├─[0]
-    ///  └─[2]      <- ObjPtr
-    ///     └─[1]   <- ObjPtr
-    /// ```
-    ///
-    /// The refCount of an Object is always equal to the number of ObjPtrs
-    /// referencing this Object, plus the sum of the refCounts of all of its
-    /// direct children.
-    ///
-    /// Note that the role of ObjPtrs is two-fold:
-    /// 1. Keep root Objects alive.
-    /// 2. Throw an exception when trying to access a non-alive Object.
-    ///
-    /// However, the role of ObjPtrs is NOT to keep child Objects alive.
-    /// Instead, child Objects are uniquely owned by their parent. This means
-    /// that parent Objects can decide to destroy their children regardless of
-    /// their refCount, and child Objects aren't automatically destroyed when
-    /// their refCount reaches zero.
+    /// If this Object is a child object, then the refCount represents a "weak
+    /// reference count". The child object is uniquely owned by its parent:
+    /// this means it can be "destroyed" (i.e., isAlive() becomes false) even
+    /// if its refCount is greater than zero. However, the C++ object is not
+    /// actually destructed until the refCount becomes zero, so that observers
+    /// holding an `ObjPtr` to the child object can safely check the value of
+    /// `isAlive()`.
     ///
     /// One way to think about this ownership model is:
     /// - An ObjPtr is acting like an std::shared_ptr for root Objects.
@@ -598,14 +561,14 @@ public:
     ///
     /// - In C++, just use raw pointers everywhere, except for root Objects
     /// where you should use an ObjPtr. You must avoid cyclic references of
-    /// ObjPtr, otherwise it will cause memory leaks.
+    /// ObjPtr of root objects, otherwise it will cause memory leaks.
     ///
     /// - In Python, all Objects are under the hood wrapped in an ObjPtr. This
-    /// is likely to cause cyclic references, but it's okay since the garbage
-    /// collector of Python will detect those and prevent memory leaks.
+    /// is more likely to cause cyclic references of root objects, but it's
+    /// okay since the garbage collector of Python will detect those and
+    /// prevent memory leaks.
     ///
-    Int64 refCount() const
-    {
+    Int64 refCount() const {
         if (refCount_ >= 0) {
             return refCount_;
         }
@@ -622,8 +585,7 @@ public:
     /// Note that it is possible and even common for child Objects to be alive
     /// and have a refCount of zero.
     ///
-    bool isAlive() const
-    {
+    bool isAlive() const {
         return refCount_ >= 0;
     }
 
@@ -631,40 +593,35 @@ public:
     /// parent. An Object without parent is called a "root Object". An Object
     /// with a parent is called a "child Object".
     ///
-    Object* parentObject() const
-    {
+    Object* parentObject() const {
         return parentObject_;
     }
 
     /// Returns the first child of this Object, of nullptr if this object has
     /// no children.
     ///
-    Object* firstChildObject() const
-    {
+    Object* firstChildObject() const {
         return firstChildObject_;
     }
 
     /// Returns the last child of this Object, of nullptr if this object has
     /// no children.
     ///
-    Object* lastChildObject() const
-    {
+    Object* lastChildObject() const {
         return lastChildObject_;
     }
 
     /// Returns the next sibling of this Object, of nullptr if this Object has
     /// no parent or is the last child of its parent.
     ///
-    Object* nextSiblingObject() const
-    {
+    Object* nextSiblingObject() const {
         return nextSiblingObject_;
     }
 
     /// Returns the previous sibling of this Object, of nullptr if this Object has
     /// no parent or is the first child of its parent.
     ///
-    Object* previousSiblingObject() const
-    {
+    Object* previousSiblingObject() const {
         return previousSiblingObject_;
     }
 
@@ -698,26 +655,26 @@ public:
     /// Returns true if the connection was present.
     ///
     bool disconnect(ConnectionHandle h) const {
-        return internal::SignalHub::disconnect(this, h);
+        return detail::SignalHub::disconnect(this, h);
     }
 
     /// Removes all the signal-slot connections between this and \p receiver.
     /// Returns true if the connection was present.
     ///
     bool disconnect(const Object* receiver) const {
-        return internal::SignalHub::disconnect(this, receiver);
+        return detail::SignalHub::disconnect(this, receiver);
     }
 
     /// Disconnects all signals bound to this object from any slots.
     ///
     void disconnect() const {
-        internal::SignalHub::disconnectSignals(this);
+        detail::SignalHub::disconnectSignals(this);
     }
 
     /// Returns the number of outbound signal-slot connections.
     ///
     Int numConnections() const {
-        return internal::SignalHub::numOutboundConnections(this);
+        return detail::SignalHub::numOutboundConnections(this);
     }
 
     /// This signal is emitted by this `object` just before it is destroyed.
@@ -1051,10 +1008,21 @@ protected:
     Int branchSize() const;
 
 private:
-    // Reference counting
-    friend class internal::ObjPtrAccess; // To access refCount_
-    mutable Int64 refCount_ = 0; // If >= 0: isAlive = true, refCount = refCount_
-                                 // If < 0:  isAlive = false, refCount = refCount_ - Int64Min
+    // Reference counting.
+    //
+    // Note that `refCount_` is used to store both `refCount()` and `isAlive()`,
+    // which are semantically independent variables.
+    //
+    // If refCount_ >= 0, then:
+    //     isAlive() = true
+    //     refCount() = refCount_
+    //
+    // If refCount_ < 0, then:
+    //     isAlive() = false
+    //     refCount() = refCount_ - Int64Min
+    //
+    friend class detail::ObjPtrAccess;
+    mutable Int64 refCount_ = 0;
 
     // Parent-child relationship
     Object* parentObject_ = nullptr;
@@ -1069,8 +1037,8 @@ private:
     Int branchSize_ = 0;
 
     // Signal-slot mechanism
-    friend class internal::SignalHub; // To access signalHub_
-    mutable internal::SignalHub signalHub_;
+    friend class detail::SignalHub; // To access signalHub_
+    mutable detail::SignalHub signalHub_;
 
     void destroyObjectImpl_();
 
@@ -1081,45 +1049,40 @@ private:
     void onChildRemoved_(Object* child);
 };
 
-namespace internal {
+namespace detail {
 
 // Required by signal.h
 constexpr SignalHub& SignalHub::access(const Object* o) {
     return const_cast<Object*>(o)->signalHub_;
 }
 
-inline void ObjPtrAccess::incref(const Object* obj, Int64 k)
-{
-    while (obj) {
+inline void ObjPtrAccess::incref(const Object* obj, Int64 k) {
+    if (obj) {
         obj->refCount_ += k;
-        obj = obj->parentObject_;
     }
 }
 
-inline void ObjPtrAccess::decref(const Object* obj, Int64 k)
-{
-    const Object* root = nullptr;
-    while (obj) {
-        root = obj;
+inline void ObjPtrAccess::decref(const Object* obj, Int64 k) {
+    if (obj) {
         obj->refCount_ -= k;
-        obj = obj->parentObject_;
-    }
-    if (root) {
-        if (root->refCount_ == 0) {
-            // Here, isAlive() == true and refCount() == 0.
-            // See implementation of destroyObjectImpl_() for details on the
-            // const-cast and other subtleties of the following two lines.
-            Object* root_ = const_cast<Object*>(root);
-            root_->destroyObjectImpl_();
-        }
-        else if (root->refCount_ == Int64Min) {
-            // Here, isAlive() == false and refCount() == 0.
-            delete root;
+        bool isRoot = (obj->parentObject_ == nullptr);
+        if (isRoot) {
+            if (obj->refCount_ == 0) {
+                // Here, isAlive() == true and refCount() == 0.
+                // See implementation of destroyObjectImpl_() for details on the
+                // const-cast and other subtleties of the following two lines.
+                Object* root_ = const_cast<Object*>(obj);
+                root_->destroyObjectImpl_();
+            }
+            else if (obj->refCount_ == Int64Min) {
+                // Here, isAlive() == false and refCount() == 0.
+                delete obj;
+            }
         }
     }
 }
 
-} // namespace internal
+} // namespace detail
 
 /// \class vgc::core::ObjListIterator
 /// \brief Iterates over an ObjList
@@ -1130,19 +1093,19 @@ public:
     typedef T* value_type;
     typedef Int difference_type;
     typedef const value_type& reference; // 'const' => non-mutable forward iterator
-    typedef const value_type* pointer;;  // 'const' => non-mutable forward iterator
+    typedef const value_type* pointer;   // 'const' => non-mutable forward iterator
     typedef std::forward_iterator_tag iterator_category;
 
     /// Constructs an invalid `ObjListIterator`.
     ///
-    ObjListIterator() : p_(nullptr) {
-
+    ObjListIterator()
+        : p_(nullptr) {
     }
 
     /// Constructs an iterator pointing to the given object.
     ///
-    explicit ObjListIterator(T* p) : p_(p) {
-
+    explicit ObjListIterator(T* p)
+        : p_(p) {
     }
 
     /// Prefix-increments this iterator.
@@ -1214,8 +1177,9 @@ class ObjListView {
 public:
     /// Constructs an ObjListView from the given ObjList.
     ///
-    ObjListView(ObjList<T>* list) : begin_(list->first()), end_(nullptr) {
-
+    ObjListView(ObjList<T>* list)
+        : begin_(list->first())
+        , end_(nullptr) {
     }
 
     /// Constructs a range of sibling objects from \p begin to \p end. The
@@ -1225,8 +1189,9 @@ public:
     /// and \p end are null, then the range is empty. The behavior is undefined
     /// if \p begin is null but \p end is not.
     ///
-    ObjListView(T* begin, T* end) : begin_(begin), end_(end) {
-
+    ObjListView(T* begin, T* end)
+        : begin_(begin)
+        , end_(end) {
     }
 
     /// Returns the begin of the range.
@@ -1291,7 +1256,8 @@ private:
     VGC_PRIVATIZE_OBJECT_TREE_MUTATORS
 
 protected:
-    ObjList() {}
+    ObjList() {
+    }
 
 public:
     static ObjList* create(Object* parent) {
@@ -1313,6 +1279,17 @@ public:
     }
 
     void insert(T* child, T* nextSibling) {
+        insertChildObject_(child, nextSibling);
+    }
+
+    void insertAt(Int i, T* child) {
+        if (i < 0 || i > numChildObjects()) {
+            throw IndexError(core::format("Cannot insert child in list at index {}.", i));
+        }
+        Object* nextSibling = firstChildObject();
+        for (; i > 0; --i) {
+            nextSibling = nextSibling->nextSiblingObject();
+        }
         insertChildObject_(child, nextSibling);
     }
 
@@ -1339,18 +1316,15 @@ public:
     VGC_SIGNAL(childRemoved, (T*, child));
 };
 
-inline ObjectListView Object::childObjects() const
-{
+inline ObjectListView Object::childObjects() const {
     return ObjectListView(firstChildObject(), nullptr);
 }
 
-inline Int Object::numChildObjects() const
-{
+inline Int Object::numChildObjects() const {
     return numChildObjects_;
 }
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core
 
 /// Forward-declares the given object subclass, and define convenient name
 /// aliases for its related smart pointers and list classes. More specifically,
@@ -1387,13 +1361,13 @@ inline Int Object::numChildObjects() const
 /// }
 /// ```
 ///
-#define VGC_DECLARE_OBJECT(T)                              \
-    class T;                                               \
-    using T##Ptr          = vgc::core::ObjPtr<T>;          \
-    using T##ConstPtr     = vgc::core::ObjPtr<const T>;    \
-    using T##List         = vgc::core::ObjList<T>;         \
-    using T##ListIterator = vgc::core::ObjListIterator<T>; \
-    using T##ListView     = vgc::core::ObjListView<T>
+#define VGC_DECLARE_OBJECT(T)                                                            \
+    class T;                                                                             \
+    using T##Ptr = vgc::core::ObjPtr<T>;                                                 \
+    using T##ConstPtr = vgc::core::ObjPtr<const T>;                                      \
+    using T##List = vgc::core::ObjList<T>;                                               \
+    using T##ListIterator = vgc::core::ObjListIterator<T>;                               \
+    using T##ListView = vgc::core::ObjListView<T>
 
 namespace vgc::core {
 
@@ -1401,7 +1375,7 @@ VGC_DECLARE_OBJECT(Object);
 
 } // namespace vgc::core
 
-namespace vgc::core::internal {
+namespace vgc::core::detail {
 
 VGC_DECLARE_OBJECT(ConstructibleTestObject);
 
@@ -1410,8 +1384,7 @@ class ConstructibleTestObject : public Object {
     VGC_OBJECT(ConstructibleTestObject, Object)
 
 public:
-    static ConstructibleTestObjectPtr create()
-    {
+    static ConstructibleTestObjectPtr create() {
         return new ConstructibleTestObject();
     }
 };
@@ -1489,6 +1462,6 @@ public:
     VGC_SLOT(slotIntFloat, slotIntFloat_);
 };
 
-} // namespace vgc::core::internal
+} // namespace vgc::core::detail
 
 #endif // VGC_CORE_OBJECT_H

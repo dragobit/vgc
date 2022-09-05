@@ -1,40 +1,159 @@
+.Flex {
+    padding-top: 10dp;
+    padding-right: 10dp;
+    padding-bottom: 10dp;
+    padding-left: 10dp;
+    row-gap: 10dp;
+    column-gap: 10dp;
+}
+
+.Flex .Flex {
+    padding-top: 0dp;
+    padding-right: 0dp;
+    padding-bottom: 0dp;
+    padding-left: 0dp;
+}
+
+.Flex,
+.Grid,
+.Button,
+.Label,
+.LineEdit,
+.Plot2d {
+    pixel-hinting: normal;
+
+    /* With SourceSansPro @ 14dp, both cap-height and num-height are equal to 9dp.
+     * So we ensure that font-ascent - 9dp == font-descent so that number and capital
+     * letters are perfectly centered in the rectangle of selection.
+     */
+    font-size: 14dp;
+    font-ascent: 12dp;
+    font-descent: 3dp;
+
+    caret-color: rgb(221, 221, 221);
+    text-color: rgb(221, 221, 221);
+    text-selection-color: rgb(221, 221, 221);
+    text-selection-background-color: rgb(11, 82, 172);
+}
+
 .Button,
 .Label,
 .LineEdit {
-    margin-top: 5dp;
-    margin-right: 5dp;
-    margin-bottom: 5dp;
-    margin-left: 5dp;
-}
-
-.Button {
-    background-color: rgb(44, 46, 47);
-    background-color-on-hover: rgb(11, 82, 172);
-    border-radius: 3dp;
-    text-color: rgb(221, 221, 221);
     preferred-width: auto;
-    preferred-height: 28dp;
+    preferred-height: 21dp;
+    text-vertical-align: middle;
+    text-horizontal-align: center;
 }
 
 .LineEdit {
-    background-color: rgb(44, 46, 47);
-    border-radius: 3dp;
-    text-color: rgb(221, 221, 221);
+    text-horizontal-align: left;
+}
+
+.Button,
+.LineEdit,
+.Plot2d {
+    border-top-left-radius: 3dp;
+    border-top-right-radius: 3dp;
+    border-bottom-right-radius: 3dp;
+    border-bottom-left-radius: 3dp;
+}
+
+.LineEdit.horizontal-group.first {
+    border-top-right-radius: 0dp;
+    border-bottom-right-radius: 0dp;
+}
+
+.LineEdit.horizontal-group.middle {
+    border-top-left-radius: 0dp;
+    border-top-right-radius: 0dp;
+    border-bottom-right-radius: 0dp;
+    border-bottom-left-radius: 0dp;
+}
+
+.LineEdit.horizontal-group.last {
+    border-top-left-radius: 0dp;
+    border-bottom-left-radius: 0dp;
+}
+
+.LineEdit,
+.Plot2d {
+    background-color: rgb(34, 36, 37);
+}
+
+.Button {
+    background-color: rgb(90, 94, 98);
+    text-color: rgb(230, 230, 230);
+}
+
+.Button.hovered {
+    background-color: rgb(110, 114, 118);
+}
+
+.Button.pressed {
+    background-color: rgb(120, 124, 128);
+}
+
+.LineEdit {
+    padding-right: 5dp;
+    padding-left: 5dp;
+}
+
+.ColorPaletteSelector {
+    row-gap: 10dp;
+}
+
+.ColorPaletteSelector {
+    vertical-stretch: 0;
+}
+
+.ColorPalette .Flex {
+    column-gap: 1dp;
+}
+
+.ColorPalette .Flex .Label {
+    preferred-width: 34dp;
+    horizontal-stretch: 0;
+    text-horizontal-align: left;
+}
+
+.ColorListView {
     preferred-width: auto;
-    preferred-height: 28dp;
-    padding-left: 5dp;
-    padding-right: 5dp;
+    preferred-height: 34dp;
+    vertical-stretch: 0;
 }
 
-.Flex {
-    padding-top: 5dp;
-    padding-right: 5dp;
-    padding-bottom: 5dp;
-    padding-left: 5dp;
+.ColorListViewItem {
+    preferred-width: 22dp;
+    preferred-height: auto;
+    border-top-left-radius: 25%;
+    border-top-right-radius: 25%;
+    border-bottom-right-radius: 25%;
+    border-bottom-left-radius: 25%;
+}
+
+.ColorPaletteSelector,
+.ColorListViewItem {
+    /* simulates semi-transparent gray on top of colored cells */
     pixel-hinting: normal;
+    border-width: 0.5dp;
+    border-color: rgb(50, 50, 50);
 }
 
-.ColorPalette {
-    preferred-width: 100dp;
-    preferred-height: 200dp;
+.Plot2d {
+    background-color-on-hover: rgb(54, 56, 57);
+    padding-top: 3dp;
+    padding-right: 3dp;
+    padding-bottom: 3dp;
+    padding-left: 3dp;
+    vertical-stretch: 10;
+}
+
+.Plot2d-label-right-aligned {
+    text-horizontal-align: center;
+    text-vertical-align: middle;
+}
+
+.Plot2d-label-center-aligned {
+    text-horizontal-align: center;
+    text-vertical-align: middle;
 }

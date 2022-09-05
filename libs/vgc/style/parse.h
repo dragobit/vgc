@@ -1,4 +1,4 @@
-// Copyright 2021 The VGC Developers
+// Copyright 2022 The VGC Developers
 // See the COPYRIGHT file at the top-level directory of this distribution
 // and at https://github.com/vgc/vgc/blob/master/COPYRIGHT
 //
@@ -14,38 +14,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <unordered_map>
+#ifndef VGC_STYLE_PARSE_H
+#define VGC_STYLE_PARSE_H
 
-#include <vgc/core/object.h>
+#include <vgc/core/stringid.h>
+#include <vgc/style/api.h>
+#include <vgc/style/style.h>
 
-namespace vgc::core::internal {
+namespace vgc::style {
 
-ConnectionHandle ConnectionHandle::generate() {
-    static ConnectionHandle s = {0};
-    // XXX make this thread-safe ?
-    return {++s.id_};
-}
+VGC_STYLE_API
+StyleValue parseColor(StyleTokenIterator begin, StyleTokenIterator end);
 
-namespace {
+VGC_STYLE_API
+StyleValue parseLength(StyleTokenIterator begin, StyleTokenIterator end);
 
-FunctionId lastId = 0;
-std::unordered_map<std::type_index, FunctionId> typesMap;
+VGC_STYLE_API
+StyleValue parseIdentifierAmong(
+    StyleTokenIterator begin,
+    StyleTokenIterator end,
+    std::initializer_list<core::StringId> list);
 
-} // namespace
+} // namespace vgc::style
 
-FunctionId genFunctionId() {
-    // XXX make this thread-safe ?
-    return ++lastId;
-}
-
-FunctionId genFunctionId(std::type_index ti)
-{
-    // XXX make this thread-safe ?
-    FunctionId& id = typesMap[ti];
-    if (id == 0) {
-        id = ++lastId;
-    }
-    return id;
-}
-
-} // namespace vgc::core::internal
+#endif // VGC_STYLE_STRINGS_H

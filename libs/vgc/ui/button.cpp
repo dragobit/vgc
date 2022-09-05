@@ -17,125 +17,198 @@
 #include <vgc/ui/button.h>
 
 #include <vgc/core/array.h>
+#include <vgc/graphics/strings.h>
 #include <vgc/ui/strings.h>
 
-#include <vgc/ui/internal/paintutil.h>
+#include <vgc/ui/detail/paintutil.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
-Button::Button(const std::string& text) :
-    Widget(),
-    text_(text),
-    reload_(true),
-    isHovered_(false)
-{
+Button::Button(std::string_view text)
+    : Widget()
+    , richText_(graphics::RichText::create()) {
+
+    setText(text);
+    richText_->setParentStylableObject(this);
     addStyleClass(strings::Button);
 }
 
-ButtonPtr Button::create()
-{
+ButtonPtr Button::create() {
     return ButtonPtr(new Button(""));
 }
 
-ButtonPtr Button::create(const std::string& text)
-{
+ButtonPtr Button::create(std::string_view text) {
     return ButtonPtr(new Button(text));
 }
 
-void Button::setText(const std::string& text)
-{
-    if (text_ != text) {
-        text_ = text;
+void Button::setText(std::string_view text) {
+    if (text != richText_->text()) {
+        richText_->setText(text);
         reload_ = true;
-        repaint();
+        requestRepaint();
     }
 }
 
-void Button::onResize()
-{
+void Button::click(const geometry::Vec2f& pos) {
+    clicked().emit(this, pos);
+}
+
+style::StylableObject* Button::firstChildStylableObject() const {
+    return richText_.get();
+}
+
+style::StylableObject* Button::lastChildStylableObject() const {
+    return richText_.get();
+}
+
+void Button::onResize() {
+
+    namespace gs = graphics::strings;
+
+    // Compute contentRect
+    // TODO: move to Widget::contentRect()
+    float paddingLeft = detail::getLength(this, gs::padding_left);
+    float paddingRight = detail::getLength(this, gs::padding_right);
+    float paddingTop = detail::getLength(this, gs::padding_top);
+    float paddingBottom = detail::getLength(this, gs::padding_bottom);
+    geometry::Rect2f r = rect();
+    geometry::Vec2f pMinOffset(paddingLeft, paddingTop);
+    geometry::Vec2f pMaxOffset(paddingRight, paddingBottom);
+    geometry::Rect2f contentRect(r.pMin() + pMinOffset, r.pMax() - pMaxOffset);
+
+    // Set appropriate size for the RichText
+    richText_->setRect(contentRect);
+
     reload_ = true;
 }
 
-void Button::onPaintCreate(graphics::Engine* engine)
-{
-    triangles_ = engine->createTriangles();
+void Button::onPaintCreate(graphics::Engine* engine) {
+    triangles_ =
+        engine->createDynamicTriangleListView(graphics::BuiltinGeometryLayout::XYRGB);
 }
 
-void Button::onPaintDraw(graphics::Engine*)
-{
+void Button::onPaintDraw(graphics::Engine* engine, PaintOptions /*options*/) {
+
+    namespace gs = graphics::strings;
+
     if (reload_) {
         reload_ = false;
         core::FloatArray a;
-        core::Color backgroundColor = internal::getColor(this, isHovered_ ?
-                        strings::background_color_on_hover :
-                        strings::background_color);
-        core::Color textColor = internal::getColor(this, strings::text_color);
-        float borderRadius = internal::getLength(this, strings::border_radius);
-        graphics::TextProperties textProperties(
-                    graphics::TextHorizontalAlign::Center,
-                    graphics::TextVerticalAlign::Middle);
-        graphics::TextCursor textCursor;
-        bool hinting = style(strings::pixel_hinting) == strings::normal;
-        internal::insertRect(a, backgroundColor, 0, 0, width(), height(), borderRadius);
-        internal::insertText(a, textColor, 0, 0, width(), height(), 0, 0, 0, 0, text_, textProperties, textCursor, hinting);
-        triangles_->load(a.data(), a.length());
+
+        // Draw background
+        core::Color backgroundColor = detail::getColor(this, gs::background_color);
+        if (backgroundColor.a() > 0) {
+            style::BorderRadiuses borderRadiuses = detail::getBorderRadiuses(this);
+            detail::insertRect(a, backgroundColor, rect(), borderRadiuses);
+        }
+
+        // Draw text
+        richText_->fill(a);
+
+        // Load triangles data
+        engine->updateVertexBufferData(triangles_, std::move(a));
     }
-    triangles_->draw();
+    engine->setProgram(graphics::BuiltinProgram::Simple);
+    engine->draw(triangles_, -1, 0);
 }
 
-void Button::onPaintDestroy(graphics::Engine*)
-{
+void Button::onPaintDestroy(graphics::Engine*) {
     triangles_.reset();
 }
 
-bool Button::onMouseMove(MouseEvent* /*event*/)
-{
-    return true;
+bool Button::onMouseMove(MouseEvent* event) {
+    if (isPressed_) {
+        if (rect().contains(event->position())) {
+            if (!hasStyleClass(strings::pressed)) {
+                addStyleClass(strings::pressed);
+                reload_ = true;
+                requestRepaint();
+            }
+        }
+        else {
+            if (hasStyleClass(strings::pressed)) {
+                removeStyleClass(strings::pressed);
+                reload_ = true;
+                requestRepaint();
+            }
+        }
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
-bool Button::onMousePress(MouseEvent* /*event*/)
-{
-    return true;
+bool Button::onMousePress(MouseEvent* event) {
+    if (event->button() == MouseButton::Left) {
+        pressed().emit(this, event->position());
+        addStyleClass(strings::pressed);
+        isPressed_ = true;
+        reload_ = true;
+        requestRepaint();
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
-bool Button::onMouseRelease(MouseEvent* /*event*/)
-{
-    return true;
+bool Button::onMouseRelease(MouseEvent* event) {
+    if (event->button() == MouseButton::Left) {
+        released().emit(this, event->position());
+        if (rect().contains(event->position())) {
+            click(event->position());
+        }
+        removeStyleClass(strings::pressed);
+        isPressed_ = false;
+        reload_ = true;
+        requestRepaint();
+        return true;
+    }
+    else {
+        return false;
+    }
 }
 
-bool Button::onMouseEnter()
-{
-    isHovered_ = true;
+bool Button::onMouseEnter() {
+    addStyleClass(strings::hovered);
     reload_ = true;
-    repaint();
+    requestRepaint();
     return true;
 }
 
-bool Button::onMouseLeave()
-{
-    isHovered_ = false;
+bool Button::onMouseLeave() {
+    removeStyleClass(strings::hovered);
     reload_ = true;
-    repaint();
+    requestRepaint();
     return true;
 }
 
-geometry::Vec2f Button::computePreferredSize() const
-{
+geometry::Vec2f Button::computePreferredSize() const {
+
+    namespace gs = graphics::strings;
+
     PreferredSizeType auto_ = PreferredSizeType::Auto;
     PreferredSize w = preferredWidth();
     PreferredSize h = preferredHeight();
+
     geometry::Vec2f res(0, 0);
+    geometry::Vec2f textPreferredSize(0, 0);
+    if (w.type() == auto_ || h.type() == auto_) {
+        textPreferredSize = richText_->preferredSize();
+    }
     if (w.type() == auto_) {
-        res[0] = 100;
-        // TODO: compute appropriate width based on text length
+        float paddingLeft = detail::getLength(this, gs::padding_left);
+        float paddingRight = detail::getLength(this, gs::padding_right);
+        res[0] = textPreferredSize[0] + paddingLeft + paddingRight;
     }
     else {
         res[0] = w.value();
     }
     if (h.type() == auto_) {
-        res[1] = 26;
-        // TODO: compute appropriate height based on font size?
+        float paddingTop = detail::getLength(this, gs::padding_top);
+        float paddingBottom = detail::getLength(this, gs::padding_bottom);
+        res[1] = textPreferredSize[1] + paddingTop + paddingBottom;
     }
     else {
         res[1] = h.value();
@@ -143,5 +216,4 @@ geometry::Vec2f Button::computePreferredSize() const
     return res;
 }
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui

@@ -19,20 +19,20 @@
 
 #include <string_view>
 
+#include <vgc/core/flags.h>
 #include <vgc/core/innercore.h>
 #include <vgc/geometry/rect2f.h>
 #include <vgc/graphics/api.h>
 #include <vgc/graphics/font.h>
 
-namespace vgc {
-namespace graphics {
+namespace vgc::graphics {
 
-namespace internal {
+namespace detail {
 
 class ShapedTextImpl;
 class TextBoundaryIteratorImpl;
 
-} // namespace internal
+} // namespace detail
 
 /// \enum vgc::graphics::TextHorizontalAlign
 /// \brief How to align text horizontally
@@ -80,10 +80,13 @@ class VGC_GRAPHICS_API TextProperties {
 public:
     /// Constructs a TextProperties with the given alignment.
     ///
-    TextProperties(TextHorizontalAlign horizontalAlign = TextHorizontalAlign::Left,
-                   TextVerticalAlign verticalAlign = TextVerticalAlign::Top) :
-        horizontalAlign_(horizontalAlign),
-        verticalAlign_(verticalAlign) {}
+    TextProperties(
+        TextHorizontalAlign horizontalAlign = TextHorizontalAlign::Left,
+        TextVerticalAlign verticalAlign = TextVerticalAlign::Top)
+
+        : horizontalAlign_(horizontalAlign)
+        , verticalAlign_(verticalAlign) {
+    }
 
     /// Returns the horizontal alignment.
     ///
@@ -114,6 +117,159 @@ private:
     TextVerticalAlign verticalAlign_;
 };
 
+// clang-format off
+
+/// \enum vgc::graphics::TextBoundaryMarker
+/// \brief Stores or queries boundary information about text positions.
+///
+/// This enumeration represents the different boundary properties
+/// that can be stored or queried about text positions.
+///
+/// # Text segmentation
+///
+/// Text written in natural languages can typically be decomposed into text
+/// elements such as graphemes ("user-perceived character"), words, and
+/// sentences. Guidelines for determining the boundaries between these elements
+/// is provided by the Unicode standard at:
+///
+/// https://www.unicode.org/reports/tr29
+///
+/// Computing these boundaries is important in user interfaces, as it allows a
+/// user to interact with the text in meaningful ways, for example, moving the
+/// text caret one grapheme or one word at a time, selecting a word by
+/// double-clicking on it, etc.
+///
+/// We call "significant" any word which is not only made of whitespace or
+/// punctuaction. This is sometimes useful to navigate from word to word, by
+/// automatically skipping whitespaces and punctuation.
+///
+/// # Line break opportunities
+///
+/// For word-wrapping purposes, it is important to know at which positions it
+/// is prohibited, allowed, or mandatory to split a long line into multiple
+/// lines. Guidelines for determining such line break opportunities are
+/// provided by the Unicode standard at:
+///
+/// https://www.unicode.org/reports/tr14
+///
+/// All line break opportunities, whether mandatory or optional, are marked
+/// with the `LineBreakOpportunity` flag.
+///
+/// If the `MandatoryLineBreak` flag is set, then the line break is mandatory.
+/// This typically occurs at the first position, the last position, or when a
+/// "newline character" (CR or CRLF) is found.
+///
+/// If the `MandatoryLineBreak` flag is not set, then the line break is
+/// optional. This typically occurs in two situations:
+///
+/// 1. At the beginning of a significant word, in which case the line can be
+/// broken without any additional marking, and the `SoftHyphen` flag is set to
+/// false.
+///
+/// 2. Just after an explicit soft hyphen character (U+00AD), or in the middle
+/// of word at a position that is considered breakable based on an algorithm or
+/// dictionary. In this case, the `SoftHyphen` flag is set to true, and a
+/// hyphen mark should typically be added at the end of the line if one decides
+/// to break the line here.
+///
+enum class TextBoundaryMarker : UInt16 {
+    None                  = 0x00,
+
+    Grapheme              = 0x01,
+    Word                  = 0x02,
+    Sentence              = 0x04,
+
+    SignificantWordStart  = 0x08,
+    SignificantWordEnd    = 0x10,
+
+    LineBreakOpportunity  = 0x20,
+    MandatoryLineBreak    = 0x40,
+    SoftHyphen            = 0x80
+
+    // TODO: add other useful boundaries: script, bidi, span, etc.
+};
+VGC_DEFINE_FLAGS(TextBoundaryMarkers, TextBoundaryMarker)
+
+// clang-format on
+
+using TextBoundaryMarkersArray = core::Array<TextBoundaryMarkers>;
+
+/// Computes boundary markers for the given UTF-8 encoded text.
+///
+/// The length of the returned array is `text.length() + 1`.
+///
+VGC_GRAPHICS_API
+TextBoundaryMarkersArray computeBoundaryMarkers(std::string_view text);
+
+/// \class vgc::graphics::ShapedGlyph
+/// \brief Represents a position within a shaped text.
+///
+class ShapedTextPositionInfo {
+public:
+    /// Creates a ShapedTextPosition.
+    ///
+    ShapedTextPositionInfo(
+        Int glyphIndex,
+        Int byteIndex,
+        const geometry::Vec2f& advance,
+        TextBoundaryMarkers boundaryMarkers)
+
+        : glyphIndex_(glyphIndex)
+        , byteIndex_(byteIndex)
+        , advance_(advance)
+        , boundaryMarkers_(boundaryMarkers) {
+    }
+
+    /// Returns the index of the ShapedGlyph just after this position.
+    ///
+    /// Returns -1 if there is no ShapedGlyph after this position.
+    ///
+    /// If this position is in the middle of a glyph (i.e., a glyph spans
+    /// several graphemes, typically because of a ligature), then this glyph
+    /// index is returned.
+    ///
+    Int glyphIndex() const {
+        return glyphIndex_;
+    }
+
+    /// Returns the UTF-8 byte index in the original text that
+    /// corresponds to this position.
+    ///
+    /// Note that a single unicode character never results in multiple
+    /// graphemes, so this function always return a different byteIndex for
+    /// different positions.
+    ///
+    Int byteIndex() const {
+        return byteIndex_;
+    }
+
+    /// Returns how much the line advances from the beginning of the ShapedText
+    /// to this position. The X-coordinate corresponds to the advance when
+    /// setting text in horizontal direction, and the Y-coordinate corresponds
+    /// to the advance when setting text in vertical direction.
+    ///
+    geometry::Vec2f advance() const {
+        return advance_;
+    }
+
+    /// Returns whether this position is at the start/end of a grapheme, the
+    /// start/end of a word, etc.
+    ///
+    TextBoundaryMarkers boundaryMarkers() const {
+        return boundaryMarkers_;
+    }
+
+private:
+    friend class detail::ShapedTextImpl;
+    Int glyphIndex_;
+    Int byteIndex_;
+    geometry::Vec2f advance_;
+    TextBoundaryMarkers boundaryMarkers_;
+
+private:
+    friend class ShapedText;
+};
+
 /// \class vgc::graphics::ShapedGlyph
 /// \brief Represents one glyph of a shaped text.
 ///
@@ -135,18 +291,20 @@ class VGC_GRAPHICS_API ShapedGlyph {
 public:
     /// Creates a ShapedGlyph.
     ///
-    ShapedGlyph(SizedGlyph* sizedGlyph,
-                const geometry::Vec2f& offset,
-                const geometry::Vec2f& advance,
-                const geometry::Vec2f& position,
-                Int bytePosition) :
-        sizedGlyph_(sizedGlyph),
-        offset_(offset),
-        advance_(advance),
-        position_(position),
-        bytePosition_(bytePosition),
-        boundingBox_(core::NoInit{})
-    {
+    ShapedGlyph(
+        SizedGlyph* sizedGlyph,
+        const geometry::Vec2f& offset,
+        const geometry::Vec2f& advance,
+        const geometry::Vec2f& position,
+        Int bytePosition)
+
+        : sizedGlyph_(sizedGlyph)
+        , offset_(offset)
+        , advance_(advance)
+        , position_(position)
+        , bytePosition_(bytePosition)
+        , boundingBox_(core::NoInit{}) {
+
         // Convert bounding box from SizedGlyph coords to ShapedText coords
         geometry::Rect2f bbox = sizedGlyph->boundingBox();
         geometry::Vec2f positionf(position);
@@ -223,6 +381,8 @@ public:
         return boundingBox_;
     }
 
+    // clang-format off
+
     /// Fills this ShapedGlyph, taking into account its relative position() and
     /// the given origin:
     ///
@@ -256,10 +416,13 @@ public:
     /// the Y coordinate to follow the VGC convention of having the Y-axis
     /// pointing down, and takes care of translating the glyph to its correct
     /// position.
-    ///
-    void fill(core::FloatArray& data,
-              const geometry::Vec2f& origin,
-              float r, float g, float b) const;
+    /// 
+    void fill(
+        core::FloatArray& data,
+        const geometry::Vec2f& origin,
+        float r, float g, float b) const;
+
+    // clang-format on
 
     /// Overload of fill that doesn't output color information, that is, the
     /// output triangles are appended to the given output parameter `data` in
@@ -276,8 +439,7 @@ public:
     ///
     ///  ...]
     ///
-    void fill(core::FloatArray& data,
-              const geometry::Vec2f& origin) const;
+    void fill(core::FloatArray& data, const geometry::Vec2f& origin) const;
 
 private:
     SizedGlyph* sizedGlyph_;
@@ -323,14 +485,17 @@ class VGC_GRAPHICS_API ShapedGrapheme {
 public:
     /// Creates a ShapedGrapheme.
     ///
-    ShapedGrapheme(Int glyphIndex,
-                   const geometry::Vec2f& advance,
-                   const geometry::Vec2f& position,
-                   Int bytePosition) :
-        glyphIndex_(glyphIndex),
-        advance_(advance),
-        position_(position),
-        bytePosition_(bytePosition) {}
+    ShapedGrapheme(
+        Int glyphIndex,
+        const geometry::Vec2f& advance,
+        const geometry::Vec2f& position,
+        Int bytePosition)
+
+        : glyphIndex_(glyphIndex)
+        , advance_(advance)
+        , position_(position)
+        , bytePosition_(bytePosition) {
+    }
 
     /// Returns the index of the ShapedGlyph  corresponding to this grapheme.
     ///
@@ -381,7 +546,7 @@ public:
     }
 
 private:
-    friend class internal::ShapedTextImpl;
+    friend class detail::ShapedTextImpl;
     Int glyphIndex_;
     geometry::Vec2f advance_;
     geometry::Vec2f position_;
@@ -390,6 +555,7 @@ private:
 
 using ShapedGlyphArray = core::Array<ShapedGlyph>;
 using ShapedGraphemeArray = core::Array<ShapedGrapheme>;
+using ShapedTextPositionInfoArray = core::Array<ShapedTextPositionInfo>;
 
 /// \class vgc::graphics::ShapedText
 /// \brief Performs text shaping and stores the resulting shaped text.
@@ -443,6 +609,12 @@ public:
     ///
     SizedFont* sizedFont() const;
 
+    /// Modifies the sizedFont of this ShapedText. This automatically
+    /// recomputes the glyphs, and there is no guarantee that the number of
+    /// glyph is unchanged, even if using the same font on a different size.
+    ///
+    void setSizedFont(SizedFont* sizedFont);
+
     /// Returns the input text string of this ShapedText.
     ///
     const std::string& text() const;
@@ -466,22 +638,44 @@ public:
     ///
     const ShapedGraphemeArray& graphemes() const;
 
+    /// Returns the number of valid positions in this text.
+    ///
+    /// The valid positions are from `0` to `n - 1` where `n` is the number
+    /// returned by this function.
+    ///
+    Int numPositions() const;
+
+    /// Returns the smallest valid position in this text. This is always equal to `0`.
+    ///
+    Int minPosition() const {
+        return 0;
+    }
+
+    /// Returns the largest valid position in this text. This is equal to `numPositions() - 1`.
+    ///
+    Int maxPosition() const {
+        return numPositions() - 1;
+    }
+
+    /// Returns information about a given text position.
+    ///
+    /// If the given position isn't a valid position, then `positionInfo(i).byteIndex()` is equal to `-1`.
+    ///
+    ShapedTextPositionInfo positionInfo(Int position) const;
+
     // Returns how much the line advances after drawing this ShapedText. The
     // X-coordinate corresponds to the advance when setting text in horizontal
     // direction, and the Y-coordinate corresponds to the advance when setting
     // text in vertical direction.
     //
-    // This is equal to the sum of `glyph->advance()` for all the ShapedGlyph
-    // elements in glyphs().
-    //
     geometry::Vec2f advance() const;
 
     // Returns how much the line advances after drawing all the graphemes until
-    // the given bytePosition.
+    // the given text position.
     //
-    // \sa bytePosition()
-    //
-    geometry::Vec2f advance(Int bytePosition) const;
+    geometry::Vec2f advance(Int position) const;
+
+    // clang-format off
 
     /// Fills this ShapedText at the given origin:
     ///
@@ -514,9 +708,10 @@ public:
     /// pointing down, so in the example ASCII art above, if origin = (0, 0),
     /// then all the Y-coordinates of the triangle vertices will be negative.
     ///
-    void fill(core::FloatArray& data,
-              const geometry::Vec2f& origin,
-              float r, float g, float b) const;
+    void fill(
+        core::FloatArray& data,
+        const geometry::Vec2f& origin,
+        float r, float g, float b) const;
 
     /// Fills this ShapedText from glyph index `start` (included) to glyph
     /// index `end` (excluded).
@@ -524,10 +719,11 @@ public:
     /// See the other overloads of fill() for documentation of the remaining
     /// arguments.
     ///
-    void fill(core::FloatArray& data,
-              const geometry::Vec2f& origin,
-              float r, float g, float b,
-              Int start, Int end) const;
+    void fill(
+        core::FloatArray& data,
+        const geometry::Vec2f& origin,
+        float r, float g, float b,
+        Int start, Int end) const;
 
     /// Fills this ShapedText, clipping it to the rectangle given by `clipLeft`,
     /// `clipRight`, `clipTop`, and `clipBottom`.
@@ -535,19 +731,108 @@ public:
     /// See the other overloads of fill() for documentation of the remaining
     /// arguments.
     ///
-    void fill(core::FloatArray& data,
-              const geometry::Vec2f& origin,
-              float r, float g, float b,
-              float clipLeft, float clipRight,
-              float clipTop, float clipBottom) const;
+    void fill(
+        core::FloatArray& data,
+        const geometry::Vec2f& origin,
+        float r, float g, float b,
+        float clipLeft, float clipRight, float clipTop, float clipBottom) const;
 
-    /// Returns the byte position in the original text corresponding to the
-    /// grapheme boundary closest to the given mouse position.
+    /// Fills this ShapedText from glyph index `start` (included) to glyph
+    /// index `end` (excluded), clipping it to the rectangle given by
+    /// `clipLeft`, `clipRight`, `clipTop`, and `clipBottom`.
     ///
-    Int bytePosition(const geometry::Vec2f& mousePosition);
+    /// See the other overloads of fill() for documentation of the remaining
+    /// arguments.
+    ///
+    void fill(
+        core::FloatArray& data,
+        const geometry::Vec2f& origin,
+        float r, float g, float b,
+        Int start, Int end,
+        float clipLeft, float clipRight, float clipTop, float clipBottom) const;
+
+    // clang-format on
+
+    /// Returns the smallest text position whose UTF-8 byte index is greater or
+    /// equal than the given `byteIndex`.
+    ///
+    /// Returns maxPosition() if no such position exists.
+    ///
+    Int positionFromByte(Int byteIndex) const;
+
+    /// Returns the text position closest to the given 2D `point` that has
+    /// all the given `boundaryMarkers`.
+    ///
+    Int positionFromPoint(
+        const geometry::Vec2f& point,
+        TextBoundaryMarkers boundaryMarkers = TextBoundaryMarker::Grapheme) const;
+
+    /// Returns the pair of positions enclosing the given 2D `point` that has
+    /// all the given `boundaryMarkers`.
+    ///
+    /// If the given `point` is before the first position or after the last
+    /// position, then no such pair of enclosing positions exist, and instead
+    /// the two returned positions are both equal to the position closest to
+    /// the given `point`.
+    ///
+    std::pair<Int, Int> positionPairFromPoint(
+        const geometry::Vec2f& point,
+        TextBoundaryMarkers boundaryMarkers = TextBoundaryMarker::Grapheme) const;
+
+    /// Returns the smallest position with all the given `boundaryMarkers` that
+    /// is located strictly after the given `position`.
+    ///
+    /// If no such position exists, then:
+    /// - if `clamp` is true (the default), returns `numPositions() - 1`
+    /// - if `clamp` is false, returns `-1`
+    ///
+    Int nextBoundary(Int position, TextBoundaryMarkers boundaryMarkers, bool clamp = true)
+        const;
+
+    /// Returns the smallest position with all the given `boundaryMarkers` that
+    /// is located at or after the given `position`.
+    ///
+    /// This function returns the given `position` if it already has all the
+    /// given `boundaryMarkers`.
+    ///
+    /// If no such position exists, then:
+    /// - if `clamp` is true (the default), returns `numPositions() - 1`
+    /// - if `clamp` is false, returns `-1`
+    ///
+    Int nextOrEqualBoundary(
+        Int position,
+        TextBoundaryMarkers boundaryMarkers,
+        bool clamp = true) const;
+
+    /// Returns the largest position with all the given `boundaryMarkers` that
+    /// is located strictly before the given `position`.
+    ///
+    /// If no such position exists, then:
+    /// - if `clamp` is true (the default), returns `0`
+    /// - if `clamp` is false, returns `-1`
+    ///
+    Int previousBoundary(
+        Int position,
+        TextBoundaryMarkers boundaryMarkers,
+        bool clamp = true) const;
+
+    /// Returns the largest position with all the given `boundaryMarkers` that
+    /// is located at or before the given `position`.
+    ///
+    /// This function returns the given `position` if it already has all the
+    /// given `boundaryMarkers`.
+    ///
+    /// If no such position exists, then:
+    /// - if `clamp` is true (the default), returns `0`
+    /// - if `clamp` is false, returns `-1`
+    ///
+    Int previousOrEqualBoundary(
+        Int position,
+        TextBoundaryMarkers boundaryMarkers,
+        bool clamp = true) const;
 
 private:
-    internal::ShapedTextImpl* impl_;
+    detail::ShapedTextImpl* impl_;
 };
 
 /// \class vgc::graphics::TextScroll
@@ -555,13 +840,13 @@ private:
 ///
 class VGC_GRAPHICS_API TextScroll {
 public:
-
     /// Creates a TextScroll with the given horizontal scrolling `x` and
     /// vertical scrolling `y`.
     ///
-    TextScroll(Int x = 0, Int y = 0) :
-        x_(x),
-        y_(y) {}
+    TextScroll(Int x = 0, Int y = 0)
+        : x_(x)
+        , y_(y) {
+    }
 
     /// Returns the horizontal scrolling.
     ///
@@ -599,10 +884,10 @@ class VGC_GRAPHICS_API TextCursor {
 public:
     /// Creates a TextCursor.
     ///
-    TextCursor(bool isVisible = false,
-               Int bytePosition = 0) :
-        isVisible_(isVisible),
-        bytePosition_(bytePosition) {}
+    TextCursor(bool isVisible = false, Int bytePosition = 0)
+        : isVisible_(isVisible)
+        , bytePosition_(bytePosition) {
+    }
 
     /// Returns whether the TextCursor is visible.
     ///
@@ -633,101 +918,6 @@ private:
     Int bytePosition_;
 };
 
-/// \class vgc::graphics::TextBoundaryType
-/// \brief The different types of Unicode text segmentation
-///
-/// See also:
-/// - TextBoundaryIterator
-/// - http://www.unicode.org/reports/tr29/
-/// - https://doc.qt.io/qt-5/qtextboundaryfinder.html
-///
-enum class TextBoundaryType {
-    Grapheme = 0,
-    Word = 1,
-    Sentence = 2,
-    Line = 3
-};
-
-// TODO: TextBoundaryReason(s). See QTextBoundaryFinder::BoundaryReason(s)
-
-/// \class vgc::graphics::TextBoundaryIterator
-/// \brief Iterates through a string based on Unicode text boundaries.
-///
-/// This is a thin wrapper around QTextBoundaryFinder, based on std::string
-/// rather than QChar/QString.
-///
-/// See:
-/// - https://doc.qt.io/qt-5/qtextboundaryfinder.html
-/// - https://unicode.org/reports/tr29/
-///
-class VGC_GRAPHICS_API TextBoundaryIterator {
-public:
-    /// Creates a TextBoundaryIterator that iterates over the given UTF-8 string
-    /// based on the given boundary type.
-    ///
-    TextBoundaryIterator(TextBoundaryType type, const std::string& string);
-
-    /// Destroys the TextBoundaryIterator.
-    ///
-    ~TextBoundaryIterator();
-
-    // Disable copy, move, assign, and move-assign
-    TextBoundaryIterator(const TextBoundaryIterator& other) = delete;
-    TextBoundaryIterator(TextBoundaryIterator&& other) = delete;
-    TextBoundaryIterator& operator=(const TextBoundaryIterator& other) = delete;
-    TextBoundaryIterator& operator=(TextBoundaryIterator&& other) = delete;
-
-    /// Returns whether the current position is at a boundary.
-    ///
-    bool isAtBoundary() const;
-
-    /// Returns whether the iterator is in a valid state.
-    ///
-    bool isValid() const;
-
-    /// Returns the number of bytes of the input UTF-8 string.
-    ///
-    Int	numBytes() const;
-
-    /// Returns the current position of the iterator, that is, the
-    /// corresponding index in the input UTF-8 string. The range is from 0 to
-    /// the number of bytes of the input string (included).
-    ///
-    Int	position() const;
-
-    /// Moves the iterator to the given position, snapping it to a valid position.
-    ///
-    void setPosition(Int position);
-
-    /// Moves the iterator to the end of the string. This is equivalent to
-    /// setPosition(string.size()).
-    ///
-    void toEnd();
-
-    /// Moves the iterator to the next boundary and returns that position.
-    /// Returns -1 if there is no next boundary.
-    ///
-    Int	toNextBoundary();
-
-    /// Moves the iterator to the previous boundary and returns that position.
-    /// Returns -1 if there is no previous boundary.
-    ///
-    Int	toPreviousBoundary();
-
-    /// Moves the iterator to the beginning of the string. This is equivalent to
-    /// setPosition(0).
-    ///
-    void toStart();
-
-    /// Returns the type of this TextBoundaryIterator.
-    ///
-    TextBoundaryType type() const;
-
-private:
-    internal::TextBoundaryIteratorImpl* impl_;
-};
-
-} // namespace graphics
-} // namespace vgc
+} // namespace vgc::graphics
 
 #endif // VGC_GRAPHICS_TEXT_H

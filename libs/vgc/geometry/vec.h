@@ -20,6 +20,8 @@
 #ifndef VGC_GEOMETRY_VEC_H
 #define VGC_GEOMETRY_VEC_H
 
+// clang-format off
+
 #include <vgc/core/templateutil.h>
 
 namespace vgc::geometry {
@@ -31,7 +33,7 @@ class Vec3d;
 class Vec4f;
 class Vec4d;
 
-namespace internal {
+namespace detail {
 
 template<int dimension, typename T> struct Vec_ {};
 template<> struct Vec_<2, float>  { using type = Vec2f; };
@@ -41,7 +43,7 @@ template<> struct Vec_<3, double> { using type = Vec3d; };
 template<> struct Vec_<4, float>  { using type = Vec4f; };
 template<> struct Vec_<4, double> { using type = Vec4d; };
 
-} // namespace internal
+} // namespace detail
 
 /// Alias template for `Vec` classes.
 ///
@@ -59,7 +61,7 @@ template<> struct Vec_<4, double> { using type = Vec4d; };
 /// shorter error messages) and may potentially speed up dynamic linking.
 ///
 template<int dimension, typename T>
-using Vec = typename internal::Vec_<dimension, T>::type;
+using Vec = typename detail::Vec_<dimension, T>::type;
 
 /// Type trait for `isVec<T>`.
 ///
@@ -68,8 +70,8 @@ struct IsVec : std::false_type {};
 
 template<typename T>
 struct IsVec<T, core::Requires<
-        std::is_same_v<T, Vec<T::dimension, typename T::ScalarType>>>> :
-    std::true_type {};
+        std::is_same_v<T, Vec<T::dimension, typename T::ScalarType>>>>
+    : std::true_type {};
 
 /// Checks whether `T` is a `vgc::geometry::Vec` type.
 ///

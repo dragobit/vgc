@@ -20,6 +20,8 @@
 #ifndef VGC_GEOMETRY_MAT_H
 #define VGC_GEOMETRY_MAT_H
 
+// clang-format off
+
 #include <vgc/core/templateutil.h>
 
 namespace vgc::geometry {
@@ -31,7 +33,7 @@ class Mat3d;
 class Mat4f;
 class Mat4d;
 
-namespace internal {
+namespace detail {
 
 template<int dimension, typename T> struct Mat_ {};
 template<> struct Mat_<2, float>  { using type = Mat2f; };
@@ -41,7 +43,7 @@ template<> struct Mat_<3, double> { using type = Mat3d; };
 template<> struct Mat_<4, float>  { using type = Mat4f; };
 template<> struct Mat_<4, double> { using type = Mat4d; };
 
-} // namespace internal
+} // namespace detail
 
 /// Alias template for `Mat` classes.
 ///
@@ -59,7 +61,7 @@ template<> struct Mat_<4, double> { using type = Mat4d; };
 /// shorter error messages) and may potentially speed up dynamic linking.
 ///
 template<int dimension, typename T>
-using Mat = typename internal::Mat_<dimension, T>::type;
+using Mat = typename detail::Mat_<dimension, T>::type;
 
 /// Type trait for `isMat<T>`.
 ///
@@ -68,8 +70,8 @@ struct IsMat : std::false_type {};
 
 template<typename T>
 struct IsMat<T, core::Requires<
-        std::is_same_v<T, Mat<T::dimension, typename T::ScalarType>>>> :
-    std::true_type {};
+        std::is_same_v<T, Mat<T::dimension, typename T::ScalarType>>>>
+    : std::true_type {};
 
 /// Checks whether `T` is a `vgc::geometry::Mat` type.
 ///

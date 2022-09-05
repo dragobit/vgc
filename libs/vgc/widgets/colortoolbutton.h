@@ -23,8 +23,7 @@
 #include <vgc/widgets/api.h>
 #include <vgc/widgets/colordialog.h>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
 /// \class vgc::core::ColorToolButton
 /// \brief Subclass of QToolButton to select a current color
@@ -34,8 +33,8 @@ namespace widgets {
 /// another widget and passed to the ColorToolButton (for example, the same
 /// ColorDialog might be used by several ColorToolButton).
 ///
-class VGC_WIDGETS_API ColorToolButton : public QToolButton
-{
+class VGC_WIDGETS_API ColorToolButton : public QToolButton {
+private:
     Q_OBJECT
 
 public:
@@ -43,9 +42,9 @@ public:
     /// ColorToolButton will create and own a ColorDialog automatically.
     ///
     ColorToolButton(
-            const core::Color& initialColor = core::colors::black,
-            QWidget* parent = nullptr,
-            ColorDialog* colorDialog = nullptr);
+        const core::Color& initialColor = core::colors::black,
+        QWidget* parent = nullptr,
+        ColorDialog* colorDialog = nullptr);
 
     /// Returns the current color.
     ///
@@ -85,7 +84,6 @@ private:
     ColorDialog* colorDialog_;
 };
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets
 
 #endif // VGC_WIDGETS_COLORTOOLBUTTON_H

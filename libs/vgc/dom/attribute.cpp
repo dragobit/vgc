@@ -16,15 +16,6 @@
 
 #include <vgc/dom/attribute.h>
 
-#include <vgc/core/logging.h>
-#include <vgc/dom/element.h>
-
-namespace vgc {
-namespace dom {
-
-} // namespace dom
-} // namespace vgc
-
 /*
 
 Implementation notes:
@@ -117,7 +108,7 @@ class Attribute {
 
 Having clients keep shared pointers of on-demand attributes, and elements have
 weak pointers sounds rationale too at first sight, but what if the element is
-deleted? The the on-demand attribute should expire too, therefore clients can't
+deleted? The on-demand attribute should expire too, therefore clients can't
 hold a shared pointer to them.
 
 Conclusion

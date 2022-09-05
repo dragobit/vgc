@@ -28,8 +28,7 @@
 #include <vgc/dom/operation.h>
 #include <vgc/dom/xmlformattingstyle.h>
 
-namespace vgc {
-namespace dom {
+namespace vgc::dom {
 
 VGC_DECLARE_OBJECT(Node);
 VGC_DECLARE_OBJECT(Document);
@@ -178,9 +177,9 @@ public:
     /// method over static_cast<Document*> or dynamic_cast<Document*>.
     ///
     static Document* cast(Node* node) {
-        return (node && node->nodeType() == NodeType::Document) ?
-               static_cast<Document*>(node) :
-               nullptr;
+        return (node && node->nodeType() == NodeType::Document)
+                   ? static_cast<Document*>(node)
+                   : nullptr;
     }
 
     /// Returns the root element of this Document.
@@ -339,8 +338,9 @@ public:
     ///
     /// Raises a FileError exception if the document cannot be saved.
     ///
-    void save(const std::string& filePath,
-              const XmlFormattingStyle& style = XmlFormattingStyle()) const;
+    void save(
+        const std::string& filePath,
+        const XmlFormattingStyle& style = XmlFormattingStyle()) const;
 
     void enableHistory(core::StringId entrypointName);
 
@@ -377,6 +377,7 @@ private:
 
     core::HistoryPtr history_;
     Diff pendingDiff_;
+    core::Array<NodePtr> pendingDiffKeepAllocPointers_;
     std::unordered_map<Node*, NodeRelatives> previousRelativesMap_;
 
     void onHistoryHeadChanged_();
@@ -387,7 +388,6 @@ private:
     void onChangeAttribute_(Element* element, core::StringId name);
 };
 
-} // namespace dom
-} // namespace vgc
+} // namespace vgc::dom
 
 #endif // VGC_DOM_DOCUMENT_H

@@ -29,25 +29,21 @@
 #include <QEvent>
 #include <QVBoxLayout>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
-PanelArea::PanelArea(QWidget* parent) :
-    QFrame(parent)
-{
+PanelArea::PanelArea(QWidget* parent)
+    : QFrame(parent) {
+
     layout_ = new QVBoxLayout();
     layout_->setAlignment(Qt::AlignTop);
     setLayout(layout_);
     updateVisibility_();
 }
 
-PanelArea::~PanelArea()
-{
-
+PanelArea::~PanelArea() {
 }
 
-widgets::Panel* PanelArea::addPanel(const QString& title, QWidget* widget)
-{
+widgets::Panel* PanelArea::addPanel(const QString& title, QWidget* widget) {
     // Create new panel.
     // Note: we need to set `this` as parent in the constructor (rather than
     // relying on layout->addWidget()), otherwise its toggleViewAction() won't
@@ -57,7 +53,11 @@ widgets::Panel* PanelArea::addPanel(const QString& title, QWidget* widget)
     panels_.push_back(panel);
 
     // Listen to panel's visibility change
-    connect(panel, &widgets::Panel::visibleToParentChanged, this, &PanelArea::onPanelVisibleToParentChanged_);
+    connect(
+        panel,
+        &widgets::Panel::visibleToParentChanged,
+        this,
+        &PanelArea::onPanelVisibleToParentChanged_);
 
     // Add to layout and return
     layout_->addWidget(panel);
@@ -65,10 +65,9 @@ widgets::Panel* PanelArea::addPanel(const QString& title, QWidget* widget)
     return panel;
 }
 
-widgets::Panel* PanelArea::panel(QWidget* widget)
-{
+widgets::Panel* PanelArea::panel(QWidget* widget) {
     if (widget) {
-        for (widgets::Panel* panel: panels_) {
+        for (widgets::Panel* panel : panels_) {
             if (panel->widget() == widget) {
                 return panel;
             }
@@ -77,8 +76,7 @@ widgets::Panel* PanelArea::panel(QWidget* widget)
     return nullptr;
 }
 
-bool PanelArea::event(QEvent* event)
-{
+bool PanelArea::event(QEvent* event) {
     QEvent::Type type = event->type();
     if (type == QEvent::ShowToParent || type == QEvent::HideToParent) {
         Q_EMIT visibleToParentChanged();
@@ -86,16 +84,14 @@ bool PanelArea::event(QEvent* event)
     return QFrame::event(event);
 }
 
-void PanelArea::onPanelVisibleToParentChanged_()
-{
+void PanelArea::onPanelVisibleToParentChanged_() {
     updateVisibility_();
 }
 
-void PanelArea::updateVisibility_()
-{
+void PanelArea::updateVisibility_() {
     // Check whether any of the panels is visible
     bool hasVisibleChildren = false;
-    for (widgets::Panel* panel: panels_) {
+    for (widgets::Panel* panel : panels_) {
         if (panel->isVisibleTo(this)) {
             hasVisibleChildren = true;
         }
@@ -108,5 +104,4 @@ void PanelArea::updateVisibility_()
     }
 }
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets

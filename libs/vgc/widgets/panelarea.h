@@ -25,16 +25,17 @@
 #include <vgc/widgets/api.h>
 #include <vgc/widgets/panel.h>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
 class Panel;
 
 /// \class vgc::widgets::PanelArea
 /// \brief An area where Panel widgets can be added or removed.
 ///
-class VGC_WIDGETS_API PanelArea : public QFrame // Note: QFrame defines the enum value QFrame::Panel.
-{                                               // Beware of name conflicts!
+// Note: QFrame defines the enum value QFrame::Panel. Beware of name conflicts!
+//
+class VGC_WIDGETS_API PanelArea : public QFrame {
+private:
     Q_OBJECT
 
 public:
@@ -76,7 +77,6 @@ private:
     void updateVisibility_();
 };
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets
 
 #endif // VGC_WIDGETS_PANELAREA_H

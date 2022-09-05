@@ -19,8 +19,7 @@
 
 #include <vgc/dom/api.h>
 
-namespace vgc {
-namespace dom {
+namespace vgc::dom {
 
 /// \enum vgc::dom::XmlIndentStyle
 /// \brief Whether tabs or spaces are used for indentation.
@@ -83,8 +82,7 @@ enum class XmlIndentStyle {
 // Note: here is a good resource for inspiration for when to extend this class:
 // https://www.jetbrains.com/help/resharper/EditorConfig_XML_XmlCodeStylePageSchema.html
 //
-struct VGC_DOM_API XmlFormattingStyle
-{
+struct VGC_DOM_API XmlFormattingStyle {
     /// Whether tabs or spaces are used for indentation of XML nodes. The
     /// default value is XmlIndentStyle::Spaces.
     ///
@@ -155,7 +153,6 @@ struct VGC_DOM_API XmlFormattingStyle
     int attributeIndentSize = 4;
 };
 
-} // namespace dom
-} // namespace vgc
+} // namespace vgc::dom
 
 #endif // VGC_DOM_XMLFORMATTINGSTYLE_H

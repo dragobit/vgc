@@ -16,13 +16,10 @@
 
 #include <vgc/core/algorithm.h>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
-std::string replace(const std::string& s,
-                    const std::string& from,
-                    const std::string& to)
-{
+std::string
+replace(const std::string& s, const std::string& from, const std::string& to) {
     std::string res;
     res.reserve(s.size());
 
@@ -48,11 +45,11 @@ std::string replace(const std::string& s,
             i += k;
             k = 0;
         }
-        else if (i+k == ns || s[i+k] != from[k]) {
+        else if (i + k == ns || s[i + k] != from[k]) {
             // Not found, let's copy s into res.
             // In most loop iteration, we end up here, and k == 0, that
             // is, we copy one more character from s to res.
-            size_t imax = std::min(i+k, ns-1);
+            size_t imax = (std::min)(i + k, ns - 1);
             while (i <= imax) {
                 res += s[i];
                 ++i;
@@ -71,5 +68,4 @@ std::string replace(const std::string& s,
     return res;
 }
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core

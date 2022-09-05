@@ -19,13 +19,11 @@
 #include <vgc/core/format.h>
 #include <vgc/ui/widget.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
-namespace internal {
+namespace detail {
 
-std::string childCycleMsg(const Widget* parent, const Widget* child)
-{
+std::string childCycleMsg(const Widget* parent, const Widget* child) {
     return core::format(
         "Widget {} cannot be a child of Widget {}"
         " because the latter is a descendant of the former",
@@ -33,11 +31,10 @@ std::string childCycleMsg(const Widget* parent, const Widget* child)
         core::toAddressString(parent));
 }
 
-} // namespace internal
+} // namespace detail
 
 VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(LogicError)
 VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(ChildCycleError)
 VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(RuntimeError)
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui

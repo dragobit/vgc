@@ -20,20 +20,18 @@
 #include <iomanip>
 #include <sstream>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
-namespace internal {
+namespace detail {
 
-double computeDouble(bool isPositive, double a, int b, int n)
-{
-    if (b+n-1 > 307) {
+double computeDouble(bool isPositive, double a, int b, int n) {
+    if (b + n - 1 > 307) {
         throw RangeError(
-            std::string("The number ") + (isPositive ? "" : "-") + toString(a) +
-            "e" + toString(b) + " is too big to be represented as a double.");
+            std::string("The number ") + (isPositive ? "" : "-") + toString(a) + "e"
+            + toString(b) + " is too big to be represented as a double.");
     }
 
-    if (b+n-1 < -307) {
+    if (b + n - 1 < -307) {
         return isPositive ? 0.0 : -0.0;
     }
 
@@ -48,7 +46,6 @@ double computeDouble(bool isPositive, double a, int b, int n)
     // TODO use precomputed powers of tens for better performance and higher accuracy.
 }
 
-} // namespace internal
+} // namespace detail
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core

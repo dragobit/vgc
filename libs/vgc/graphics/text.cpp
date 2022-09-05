@@ -19,15 +19,14 @@
 #include <array>
 #include <functional> // std::less, std::greater
 
-#include <hb.h>
 #include <hb-ft.h>
+#include <hb.h>
 
 #include <QTextBoundaryFinder>
 
 #include <vgc/geometry/vec2f.h>
 
-namespace vgc {
-namespace graphics {
+namespace vgc::graphics {
 
 namespace {
 
@@ -35,11 +34,18 @@ class Triangle2f {
     std::array<geometry::Vec2f, 3> d_;
 
 public:
-    Triangle2f(const geometry::Vec2f& a, const geometry::Vec2f& b, const geometry::Vec2f& c) :
-        d_({a, b, c}) {}
+    Triangle2f(
+        const geometry::Vec2f& a,
+        const geometry::Vec2f& b,
+        const geometry::Vec2f& c)
 
-    Triangle2f(float ax, float ay, float bx, float by, float cx, float cy) :
-        d_({geometry::Vec2f(ax, ay), geometry::Vec2f(bx, by), geometry::Vec2f(cx, cy)}) {}
+        : d_({a, b, c}) {
+    }
+
+    Triangle2f(float ax, float ay, float bx, float by, float cx, float cy)
+        : d_(
+            {geometry::Vec2f(ax, ay), geometry::Vec2f(bx, by), geometry::Vec2f(cx, cy)}) {
+    }
 
     geometry::Vec2f& operator[](Int i) {
         return d_[i];
@@ -54,7 +60,7 @@ using Triangle2fArray = core::Array<Triangle2f>;
 
 } // namespace
 
-namespace internal {
+namespace detail {
 
 class ShapedTextImpl {
 public:
@@ -70,13 +76,14 @@ public:
     //     the reference counts? Shouldn't we make the reference counts atomic,
     //     or else protect the assignment to this facePtr by a mutex?
     //
-    SizedFontPtr facePtr;
-    std::string text;
+    SizedFontPtr sizedFont_;
+    std::string text_;
 
     // Output of shaping
     //
     ShapedGlyphArray glyphs;
     ShapedGraphemeArray graphemes;
+    ShapedTextPositionInfoArray positions;
     geometry::Vec2f advance;
 
     // Buffers to avoid dynamic allocations during filling.
@@ -89,51 +96,59 @@ public:
     //
     hb_buffer_t* buf;
 
-    ShapedTextImpl(SizedFont* face, std::string_view text) :
-        facePtr(face),
-        text(),
-        glyphs(),
-        graphemes(),
-        advance(0, 0),
-        buf(hb_buffer_create())
-    {
-        setText(text);
+    ShapedTextImpl(SizedFont* sizedFont, std::string_view text)
+        : sizedFont_(sizedFont)
+        , text_(text)
+        , glyphs()
+        , graphemes()
+        , positions()
+        , advance(0, 0)
+        , buf(hb_buffer_create()) {
+
+        update();
     }
 
-    ShapedTextImpl(const ShapedTextImpl& other) :
-        facePtr(other.facePtr),
-        text(other.text),
-        glyphs(other.glyphs),
-        graphemes(other.graphemes),
-        advance(other.advance),
-        buf(hb_buffer_create())
-    {
-
+    ShapedTextImpl(const ShapedTextImpl& other)
+        : sizedFont_(other.sizedFont_)
+        , text_(other.text_)
+        , glyphs(other.glyphs)
+        , graphemes(other.graphemes)
+        , positions(other.positions)
+        , advance(other.advance)
+        , buf(hb_buffer_create()) {
     }
 
-    ShapedTextImpl& operator=(const ShapedTextImpl& other)
-    {
+    ShapedTextImpl& operator=(const ShapedTextImpl& other) {
         if (this != &other) {
-            facePtr = other.facePtr;
-            text = other.text;
+            sizedFont_ = other.sizedFont_;
+            text_ = other.text_;
             glyphs = other.glyphs;
             graphemes = other.graphemes;
+            positions = other.positions;
             advance = other.advance;
         }
         return *this;
     }
 
-    ~ShapedTextImpl()
-    {
+    ~ShapedTextImpl() {
         hb_buffer_destroy(buf);
     }
 
-    void setText(std::string_view text_)
-    {
-        // HarfBuzz input
-        text = text_;
-        const char* data = text.data();
-        int dataLength = core::int_cast<int>(text.size());
+    void setSizedFont(SizedFont* sizedFont) {
+        sizedFont_ = sizedFont;
+        update();
+    }
+
+    void setText(std::string_view text) {
+        text_ = text;
+        update();
+    }
+
+    void update() {
+
+        // Prepare input
+        const char* data = text_.data();
+        int dataLength = core::int_cast<int>(text_.size());
         unsigned int firstChar = 0;
         int numChars = dataLength;
 
@@ -142,26 +157,28 @@ public:
         hb_buffer_set_cluster_level(buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
         hb_buffer_add_utf8(buf, data, dataLength, firstChar, numChars);
         hb_buffer_guess_segment_properties(buf);
-        hb_shape(facePtr->impl_->hbFont, buf, nullptr, 0);
+        hb_shape(sizedFont_->impl_->hbFont, buf, nullptr, 0);
 
         // HarfBuzz output
         unsigned int n;
-        hb_glyph_info_t* infos = hb_buffer_get_glyph_infos(buf, &n);
-        hb_glyph_position_t* positions = hb_buffer_get_glyph_positions(buf, &n);
+        hb_glyph_info_t* glyphInfos = hb_buffer_get_glyph_infos(buf, &n);
+        hb_glyph_position_t* glyphPositions = hb_buffer_get_glyph_positions(buf, &n);
 
         // Convert to ShapedGlyph elements
         glyphs.clear();
         advance = geometry::Vec2f(0, 0);
         for (unsigned int i = 0; i < n; ++i) {
-            hb_glyph_info_t& info = infos[i];
-            hb_glyph_position_t& pos = positions[i];
-            SizedGlyph* glyph = facePtr->getSizedGlyphFromIndex(info.codepoint);
+            hb_glyph_info_t& info = glyphInfos[i];
+            hb_glyph_position_t& pos = glyphPositions[i];
+            SizedGlyph* glyph = sizedFont_->getSizedGlyphFromIndex(info.codepoint);
             Int bytePosition = core::int_cast<Int>(info.cluster);
-            geometry::Vec2f glyphOffset = internal::f266ToVec2f(pos.x_offset, pos.y_offset);
-            geometry::Vec2f glyphAdvance = internal::f266ToVec2f(pos.x_advance, pos.y_advance);
+            geometry::Vec2f glyphOffset = detail::f266ToVec2f(pos.x_offset, pos.y_offset);
+            geometry::Vec2f glyphAdvance =
+                detail::f266ToVec2f(pos.x_advance, pos.y_advance);
             geometry::Vec2f glyphPosition = advance + glyphOffset;
             if (glyph) {
-                glyphs.append(ShapedGlyph(glyph, glyphOffset, glyphAdvance, glyphPosition, bytePosition));
+                glyphs.append(ShapedGlyph(
+                    glyph, glyphOffset, glyphAdvance, glyphPosition, bytePosition));
             }
             advance += glyphAdvance;
 
@@ -171,58 +188,71 @@ public:
             // minus signs in front of pos.y_offset and pos.y_advance.
         }
 
-        // Compute graphemes and correspondence with glyphs
-        // First pass: create graphemes with corresponding byte position
+        // Create grapheme and position info objects with temporary values
+        TextBoundaryMarkersArray markersArray = computeBoundaryMarkers(text_);
         graphemes.clear();
-        TextBoundaryIterator it(TextBoundaryType::Grapheme, text);
-        Int bytePositionBefore = 0;
-        Int bytePositionAfter = it.toNextBoundary();
-        while (bytePositionAfter != -1) {
-            graphemes.append(ShapedGrapheme(0, geometry::Vec2f(0, 0), geometry::Vec2f(0, 0), bytePositionBefore));
-            bytePositionBefore = bytePositionAfter;
-            bytePositionAfter = it.toNextBoundary();
+        positions.clear();
+        for (Int byteIndex = 0; byteIndex < markersArray.length(); ++byteIndex) {
+            TextBoundaryMarkers markers = markersArray[byteIndex];
+            if (markers.has(TextBoundaryMarker::Grapheme)) {
+                if (byteIndex != markersArray.length() - 1) {
+                    graphemes.append(ShapedGrapheme(
+                        0, geometry::Vec2f(0, 0), geometry::Vec2f(0, 0), byteIndex));
+                }
+                positions.append(
+                    ShapedTextPositionInfo(0, byteIndex, geometry::Vec2f(0, 0), markers));
+            }
         }
-        // Second pass: compute the smallest glyph corresponding to each grapheme
+
+        // Compute correspondence with glyph indices
         Int numGraphemes = graphemes.length();
         Int numGlyphs = glyphs.length();
         if (numGraphemes > 0 && numGlyphs > 0) {
             Int graphemeIndex = 0;
             Int glyphIndex = 0;
-            Int numBytes = core::int_cast<Int>(text.size());
+            Int numBytes = core::int_cast<Int>(text_.size());
             for (Int p = 0; p < numBytes; ++p) {
-                while (glyphs[glyphIndex].bytePosition() < p &&
-                       glyphIndex + 1 < numGlyphs &&
-                       glyphs[glyphIndex + 1].bytePosition() <= p) {
+                while (glyphs[glyphIndex].bytePosition() < p //
+                       && glyphIndex + 1 < numGlyphs         //
+                       && glyphs[glyphIndex + 1].bytePosition() <= p) {
                     glyphIndex += 1;
                 }
-                while (graphemes[graphemeIndex].bytePosition() < p &&
-                       graphemeIndex + 1 < numGraphemes &&
-                       graphemes[graphemeIndex + 1].bytePosition() <= p) {
+                while (graphemes[graphemeIndex].bytePosition() < p //
+                       && graphemeIndex + 1 < numGraphemes         //
+                       && graphemes[graphemeIndex + 1].bytePosition() <= p) {
                     graphemeIndex += 1;
                     graphemes[graphemeIndex].glyphIndex_ = glyphIndex;
-                 }
+                    positions[graphemeIndex].glyphIndex_ = glyphIndex;
+                }
             }
         }
-        // Third pass: compute the grapheme advance by computing the sum of the
-        // glyph advances (if several glyphs for one grapheme, e.g., accents),
-        // or uniformly dividing the glyph advance by the number of graphemes
-        // (if one glyph for several graphemes, e.g., ligatures).
+        positions.last().glyphIndex_ = numGlyphs;
+
+        // Compute each grapheme advance by:
+        //
+        // - additionning the advances of its glyphs, if the grapheme is made
+        //   of one or several glyphs (e.g., accents), or
+        //
+        // - dividing the glyph advance by the number of graphemes, if one glyph
+        //   covers several graphemes (e.g., ligatures).
+        //
         for (Int graphemeIndex = 0; graphemeIndex < numGraphemes; ++graphemeIndex) {
             Int glyphIndexBegin = graphemes[graphemeIndex].glyphIndex();
-            Int glyphIndexEnd = (graphemeIndex + 1 < numGraphemes) ?
-                                graphemes[graphemeIndex + 1].glyphIndex() :
-                                numGlyphs;
+            Int glyphIndexEnd = (graphemeIndex + 1 < numGraphemes)
+                                    ? graphemes[graphemeIndex + 1].glyphIndex()
+                                    : numGlyphs;
             if (glyphIndexBegin == glyphIndexEnd) {
                 // one glyph for several graphemes
                 Int glyphIndex = glyphIndexBegin;
                 Int graphemeIndexBegin = graphemeIndex;
-                while (graphemeIndex + 1 < numGraphemes &&
-                       graphemes[graphemeIndex + 1].glyphIndex() == glyphIndex) {
+                while (graphemeIndex + 1 < numGraphemes
+                       && graphemes[graphemeIndex + 1].glyphIndex() == glyphIndex) {
                     graphemeIndex += 1;
                 }
                 geometry::Vec2f glyphAdvance = glyphs[glyphIndexBegin].advance();
                 Int numGraphemesForGlyph = graphemeIndex - graphemeIndexBegin + 1;
-                geometry::Vec2f graphemeAdvance = glyphAdvance / static_cast<float>(numGraphemesForGlyph);
+                geometry::Vec2f graphemeAdvance =
+                    glyphAdvance / static_cast<float>(numGraphemesForGlyph);
                 for (Int k = graphemeIndexBegin; k <= graphemeIndex; ++k) {
                     graphemes[k].advance_ = graphemeAdvance;
                 }
@@ -236,24 +266,34 @@ public:
                 graphemes[graphemeIndex].advance_ = graphemeAdvance;
             }
         }
-        // Fourth pass: compute position based on advance
+
+        // Compute grapheme positions as the sum of preceding grapheme advances
         geometry::Vec2f graphemePosition(0, 0);
         for (Int graphemeIndex = 0; graphemeIndex < numGraphemes; ++graphemeIndex) {
             graphemes[graphemeIndex].position_ = graphemePosition;
+            positions[graphemeIndex].advance_ = graphemePosition;
             graphemePosition += graphemes[graphemeIndex].advance();
         }
+        positions.last().advance_ = graphemePosition;
+    }
+
+    float horizontalAdvance(Int position) {
+        return positions[position].advance()[0];
     }
 
 private:
     friend class graphics::ShapedText;
 };
 
-} // namespace internal
+} // namespace detail
 
-void ShapedGlyph::fill(core::FloatArray& data,
-                       const geometry::Vec2f& origin,
-                       float r, float g, float b) const
-{
+// clang-format off
+
+void ShapedGlyph::fill(
+    core::FloatArray& data,
+    const geometry::Vec2f& origin,
+    float r, float g, float b) const {
+
     Int oldLength = data.length();
 
     // Get position data
@@ -265,7 +305,7 @@ void ShapedGlyph::fill(core::FloatArray& data,
     data.resizeNoInit(oldLength + 5 * numVertices);
     float* out = data.begin() + (oldLength + 5 * numVertices);
     float* in = data.begin() + (oldLength + 2 * numVertices);
-    while(out != in) {
+    while (out != in) {
         *(--out) = b;
         *(--out) = g;
         *(--out) = r;
@@ -274,39 +314,35 @@ void ShapedGlyph::fill(core::FloatArray& data,
     }
 }
 
-void ShapedGlyph::fill(core::FloatArray& data,
-                       const geometry::Vec2f& origin) const
-{
+// clang-format on
+
+void ShapedGlyph::fill(core::FloatArray& data, const geometry::Vec2f& origin) const {
     sizedGlyph()->fillYMirrored(data, origin + position());
 }
 
-ShapedText::ShapedText(SizedFont* sizedFont, std::string_view text) :
-    impl_()
-{
-    impl_ = new internal::ShapedTextImpl(sizedFont, text);
+ShapedText::ShapedText(SizedFont* sizedFont, std::string_view text)
+    : impl_() {
+
+    impl_ = new detail::ShapedTextImpl(sizedFont, text);
 }
 
-ShapedText::ShapedText(const ShapedText& other)
-{
-    impl_ = new internal::ShapedTextImpl(*(other.impl_));
+ShapedText::ShapedText(const ShapedText& other) {
+    impl_ = new detail::ShapedTextImpl(*(other.impl_));
 }
 
-ShapedText::ShapedText(ShapedText&& other)
-{
+ShapedText::ShapedText(ShapedText&& other) {
     impl_ = other.impl_;
     other.impl_ = nullptr;
 }
 
-ShapedText& ShapedText::operator=(const ShapedText& other)
-{
+ShapedText& ShapedText::operator=(const ShapedText& other) {
     if (this != &other) {
         *impl_ = *(other.impl_);
     }
     return *this;
 }
 
-ShapedText& ShapedText::operator=(ShapedText&& other)
-{
+ShapedText& ShapedText::operator=(ShapedText&& other) {
     if (this != &other) {
         impl_ = other.impl_;
         other.impl_ = nullptr;
@@ -314,67 +350,79 @@ ShapedText& ShapedText::operator=(ShapedText&& other)
     return *this;
 }
 
-ShapedText::~ShapedText()
-{
+ShapedText::~ShapedText() {
     delete impl_;
 }
 
-SizedFont* ShapedText::sizedFont() const
-{
-    return impl_->facePtr.get();
+SizedFont* ShapedText::sizedFont() const {
+    return impl_->sizedFont_.get();
 }
 
-const std::string& ShapedText::text() const
-{
-    return impl_->text;
+void ShapedText::setSizedFont(SizedFont* sizedFont) {
+    impl_->setSizedFont(sizedFont);
 }
 
-void ShapedText::setText(std::string_view text)
-{
+const std::string& ShapedText::text() const {
+    return impl_->text_;
+}
+
+void ShapedText::setText(std::string_view text) {
     impl_->setText(text);
 }
 
-const ShapedGlyphArray& ShapedText::glyphs() const
-{
+const ShapedGlyphArray& ShapedText::glyphs() const {
     return impl_->glyphs;
 }
 
-const ShapedGraphemeArray& ShapedText::graphemes() const
-{
+const ShapedGraphemeArray& ShapedText::graphemes() const {
     return impl_->graphemes;
 }
 
-geometry::Vec2f ShapedText::advance() const
-{
+ShapedTextPositionInfo ShapedText::positionInfo(Int position) const {
+    if (position < 0 || position >= impl_->positions.length()) {
+        return ShapedTextPositionInfo(
+            -1, -1, geometry::Vec2f(), TextBoundaryMarker::None);
+    }
+    else {
+        return impl_->positions.getUnchecked(position);
+    }
+}
+
+Int ShapedText::numPositions() const {
+    return impl_->positions.length();
+}
+
+geometry::Vec2f ShapedText::advance() const {
     return impl_->advance;
 }
 
-geometry::Vec2f ShapedText::advance(Int bytePosition) const
-{
-    geometry::Vec2f res(0, 0);
-    for (const graphics::ShapedGrapheme& grapheme : graphemes()) {
-        if (grapheme.bytePosition() >= bytePosition) {
-            break;
-        }
-        res += grapheme.advance();
+geometry::Vec2f ShapedText::advance(Int position) const {
+    if (position < 0 || position >= impl_->positions.length()) {
+        return geometry::Vec2f();
     }
-    return res;
+    else {
+        return impl_->positions.getUnchecked(position).advance();
+    }
 }
 
-void ShapedText::fill(core::FloatArray& data,
-                      const geometry::Vec2f& origin,
-                      float r, float g, float b) const
-{
+// clang-format off
+
+void ShapedText::fill(
+    core::FloatArray& data,
+    const geometry::Vec2f& origin,
+    float r, float g, float b) const {
+
     for (const ShapedGlyph& glyph : glyphs()) {
         glyph.fill(data, origin, r, g, b);
     }
 }
 
-void ShapedText::fill(core::FloatArray& data,
-                      const geometry::Vec2f& origin,
-                      float r, float g, float b,
-                      Int start, Int end) const
-{
+void ShapedText::fill(
+    core::FloatArray& data,
+    const geometry::Vec2f& origin,
+    float r, float g, float b,
+    Int start, Int end) const {
+
     const ShapedGlyphArray& glyphs = impl_->glyphs;
     for (Int i = start; i < end; ++i) {
         glyphs[i].fill(data, origin, r, g, b);
@@ -383,8 +431,7 @@ void ShapedText::fill(core::FloatArray& data,
 
 namespace {
 
-void initTriangles(const core::FloatArray& data, Triangle2fArray& out)
-{
+void initTriangles(const core::FloatArray& data, Triangle2fArray& out) {
     out.clear();
     Int numTriangles = data.length() / 6;
     out.reserve(numTriangles);
@@ -396,10 +443,10 @@ void initTriangles(const core::FloatArray& data, Triangle2fArray& out)
 }
 
 void addTriangles(
-        core::FloatArray& data,
-        const Triangle2fArray& triangles,
-        float r, float g, float b)
-{
+    core::FloatArray& data,
+    const Triangle2fArray& triangles,
+    float r, float g, float b) {
+
     data.reserve(triangles.length() * 15);
     for (const Triangle2f& t : triangles) {
         data.extend({t[0][0], t[0][1], r, g, b,
@@ -434,10 +481,11 @@ void addTriangles(
 // and are clipped accordingly.
 //
 template<int i, template<typename> typename LessOrGreater>
-void clipTriangle_(Triangle2fArray& out,
-                   const Triangle2f& triangle,
-                   float clip)
-{
+void clipTriangle_(
+    Triangle2fArray& out,
+    const Triangle2f& triangle,
+    float clip) {
+
     constexpr auto cmp = LessOrGreater<float>();
 
     // Sort by i-th coordinate and returns early in trivial cases
@@ -469,15 +517,15 @@ void clipTriangle_(Triangle2fArray& out,
     // line, and whether AB or BC are parallel to the clip line.
     //
     float eps = 1e-6f;
-    float ac = C[i]-A[i];
+    float ac = C[i] - A[i];
     if (cmp(clip, B[i])) {
-        float ab = B[i]-A[i];
+        float ab = B[i] - A[i];
         if (cmp(ab, eps * ac)) { // AB parallel to clip line
             out.append(triangle);
             return;
         }
-        geometry::Vec2f B_ = A + (clip-A[i])/ab * (B-A);
-        geometry::Vec2f C_ = A + (clip-A[i])/ac * (C-A);
+        geometry::Vec2f B_ = A + (clip - A[i]) / ab * (B - A);
+        geometry::Vec2f C_ = A + (clip - A[i]) / ac * (C - A);
         if (mirrored) {
             out.emplace(out.end(), B, B_, C);
             out.emplace(out.end(), C, B_, C_);
@@ -488,12 +536,12 @@ void clipTriangle_(Triangle2fArray& out,
         }
     }
     else {
-        float bc = C[i]-B[i];
+        float bc = C[i] - B[i];
         if (cmp(bc, eps * ac)) { // BC parallel to clip line
             return;
         }
-        A += (clip-A[i])/ac * (C-A);
-        B += (clip-B[i])/bc * (C-B); // Note: (B[i] == clip) => B unchanged
+        A += (clip - A[i]) / ac * (C - A);
+        B += (clip - B[i]) / bc * (C - B); // Note: (B[i] == clip) => B unchanged
         if (mirrored) {
             out.emplace(out.end(), B, A, C);
         }
@@ -522,10 +570,11 @@ void clipTriangle_(Triangle2fArray& out,
 //   i-th coordinate is greater than the given clip line
 //
 template<int i, template<typename> typename LessOrGreater>
-void clipTriangles_(Triangle2fArray& data,
-                    Triangle2fArray& buffer,
-                    float clip)
-{
+void clipTriangles_(
+    Triangle2fArray& data,
+    Triangle2fArray& buffer,
+    float clip) {
+
     buffer.clear();
     for (const Triangle2f& t : data) {
         clipTriangle_<i, LessOrGreater>(buffer, t, clip);
@@ -535,12 +584,25 @@ void clipTriangles_(Triangle2fArray& data,
 
 } // namespace
 
+void ShapedText::fill(
+    core::FloatArray& data,
+    const geometry::Vec2f& origin,
+    float r, float g, float b,
+    float clipLeft, float clipRight,
+    float clipTop, float clipBottom) const {
+
+    fill(data, origin, r, g, b,
+         0, glyphs().length(),
+         clipLeft, clipRight, clipTop, clipBottom);
+}
+
 void ShapedText::fill(core::FloatArray& data,
                       const geometry::Vec2f& origin,
                       float r, float g, float b,
+                      Int start, Int end,
                       float clipLeft, float clipRight,
-                      float clipTop, float clipBottom) const
-{
+                      float clipTop, float clipBottom) const {
+
     // Get clip rectangle in ShapedText coordinates
     geometry::Rect2f clipRect(clipLeft, clipTop, clipRight, clipBottom);
     clipRect.setPMin(clipRect.pMin() - origin);
@@ -552,7 +614,9 @@ void ShapedText::fill(core::FloatArray& data,
     // glyph's triangles to cut them by the clipRect, and only keep the
     // triangles inside.
     //
-    for (const ShapedGlyph& glyph : glyphs()) {
+    const ShapedGlyphArray& glyphs = impl_->glyphs;
+    for (Int i = start; i < end; ++i) {
+        const ShapedGlyph& glyph = glyphs[i];
         const geometry::Rect2f& bbox = glyph.boundingBox();
         if (clipRect.intersects(bbox)) {
             if (clipRect.contains(bbox)) {
@@ -567,16 +631,20 @@ void ShapedText::fill(core::FloatArray& data,
                 glyph.fill(floatBuffer, origin);
                 initTriangles(floatBuffer, trianglesBuffer1);
                 if (bbox.xMin() < clipRect.xMin()) {
-                    clipTriangles_<0, std::less>(trianglesBuffer1, trianglesBuffer2, clipLeft);
+                    clipTriangles_<0, std::less>(
+                        trianglesBuffer1, trianglesBuffer2, clipLeft);
                 }
                 if (bbox.yMin() < clipRect.yMin()) {
-                    clipTriangles_<1, std::less>(trianglesBuffer1, trianglesBuffer2, clipTop);
+                    clipTriangles_<1, std::less>(
+                        trianglesBuffer1, trianglesBuffer2, clipTop);
                 }
                 if (bbox.xMax() > clipRect.xMax()) {
-                    clipTriangles_<0, std::greater>(trianglesBuffer1, trianglesBuffer2, clipRight);
+                    clipTriangles_<0, std::greater>(
+                        trianglesBuffer1, trianglesBuffer2, clipRight);
                 }
                 if (bbox.yMax() > clipRect.yMax()) {
-                    clipTriangles_<1, std::greater>(trianglesBuffer1, trianglesBuffer2, clipBottom);
+                    clipTriangles_<1, std::greater>(
+                        trianglesBuffer1, trianglesBuffer2, clipBottom);
                 }
                 addTriangles(data, trianglesBuffer1, r, g, b);
             }
@@ -584,239 +652,340 @@ void ShapedText::fill(core::FloatArray& data,
     }
 }
 
-namespace {
+// clang-format on
 
-float pos_(const ShapedGrapheme& grapheme) {
-    return grapheme.position()[0];
-}
-
-float adv_(const ShapedGrapheme& grapheme) {
-    return grapheme.advance()[0];
-}
-
-} // namespace
-
-Int ShapedText::bytePosition(const geometry::Vec2f& mousePosition)
-{
-    const ShapedGraphemeArray& g = graphemes();
-    float x = mousePosition[0];
-    Int numGraphemes = g.length();
-    if (numGraphemes == 0) {
-        return 0;
+Int ShapedText::positionFromByte(Int byteIndex) const {
+    auto first = impl_->positions.cbegin();
+    auto last = impl_->positions.cend();
+    auto comp = [](const ShapedTextPositionInfo& info, Int byteIndex) {
+        return info.byteIndex() < byteIndex;
+    };
+    auto it = std::lower_bound(first, last, byteIndex, comp);
+    if (it == last) {
+        return maxPosition();
     }
     else {
-        if (x < 0) {
-            return 0;
-        }
-        else {
-            const ShapedGrapheme& last = g.last();
-            if (x > pos_(last) + adv_(last)) {
-                return core::int_cast<Int>(text().size());
-            }
-            else {
-                // Binary search: find grapheme hovered by mouse cursor.
-                // i1 = index of grapheme s.t. mouse is after start of grapheme.
-                // i2 = index of grapheme s.t. mouse is before end of grapheme.
-                // At end of loop: i1 == i2 == grapheme hovered by mouse position
-                Int i1 = 0;
-                Int i2 = g.length() - 1;
-                while (i1 != i2) {
-                    if (i2 == i1 + 1) {
-                        if (x < pos_(g[i2])) {
-                            i2 = i1;
-                        }
-                        else {
-                            i1 = i2;
-                        }
-                    }
-                    else {
-                        Int i3 = (i1 + i2) / 2;
-                        if (x < pos_(g[i3])) {
-                            i2 = i3;
-                        }
-                        else {
-                            i1 = i3;
-                        }
-                    }
-                }
-                // Determine whether the cursor is closer to the beginning
-                // of the grapheme or the end of the grapheme.
-                const ShapedGrapheme& grapheme = g[i1];
-                if (x - pos_(grapheme) < 0.5 * adv_(grapheme)) {
-                    return grapheme.bytePosition();
-                }
-                else {
-                    i2 = i1 + 1;
-                    if (i2 >= g.length()) {
-                        return core::int_cast<Int>(text().size());
-                    }
-                    else {
-                        return g[i2].bytePosition();
-                    }
-                }
-            }
-        }
+        return static_cast<Int>(std::distance(first, it));
+    }
+}
+
+Int ShapedText::positionFromPoint(
+    const geometry::Vec2f& point,
+    TextBoundaryMarkers boundaryMarkers) const {
+
+    std::pair<Int, Int> pair = positionPairFromPoint(point, boundaryMarkers);
+
+    // Determine whether the cursor is closer to the position before or after
+    float x = point[0];
+    float beforeAdvance = impl_->horizontalAdvance(pair.first);
+    float afterAdvance = impl_->horizontalAdvance(pair.second);
+    if (x < 0.5 * (beforeAdvance + afterAdvance)) {
+        return pair.first;
+    }
+    else {
+        return pair.second;
+    }
+
+    // TODO: if direction is rtl, we should revert all `if (x < ...)` comparisons
+}
+
+std::pair<Int, Int> ShapedText::positionPairFromPoint(
+    const geometry::Vec2f& point,
+    TextBoundaryMarkers boundaryMarkers) const {
+
+    // Find smallest text position after the given mouse position
+    float x = point[0];
+    auto first = impl_->positions.cbegin();
+    auto last = impl_->positions.cend();
+    auto comp = [](const ShapedTextPositionInfo& info, float x) {
+        return info.advance()[0] < x;
+    };
+    auto it = std::lower_bound(first, last, x, comp);
+
+    // Deduce pair of text positions around the given mouse position
+    Int beforePosition = minPosition();
+    Int afterPosition = maxPosition();
+    if (it == first) {
+        afterPosition = beforePosition; // before = after = min
+    }
+    else if (it == last) {
+        beforePosition = afterPosition; // before = after = max
+    }
+    else {
+        afterPosition = static_cast<Int>(std::distance(first, it));
+        beforePosition = afterPosition - 1;
+    }
+
+    // Extend positions to the given boundary markers
+    beforePosition = previousOrEqualBoundary(beforePosition, boundaryMarkers);
+    afterPosition = nextOrEqualBoundary(afterPosition, boundaryMarkers);
+
+    return std::make_pair(beforePosition, afterPosition);
+}
+
+Int ShapedText::nextBoundary(
+    Int position,
+    TextBoundaryMarkers boundaryMarkers,
+    bool clamp) const {
+
+    return nextOrEqualBoundary(position + 1, boundaryMarkers, clamp);
+}
+
+Int ShapedText::nextOrEqualBoundary(
+    Int position,
+    TextBoundaryMarkers boundaryMarkers,
+    bool clamp) const {
+
+    Int minPosition = 0;
+    Int maxPosition = numPositions() - 1;
+    if (position < minPosition) {
+        position = minPosition;
+    }
+
+    while (position <= maxPosition
+           && !impl_->positions[position].boundaryMarkers().hasAll(boundaryMarkers)) {
+        ++position;
+    }
+
+    if (position > maxPosition) {
+        return clamp ? maxPosition : -1;
+    }
+    else {
+        return position;
+    }
+}
+
+Int ShapedText::previousBoundary(
+    Int position,
+    TextBoundaryMarkers boundaryMarkers,
+    bool clamp) const {
+
+    return previousOrEqualBoundary(position - 1, boundaryMarkers, clamp);
+}
+
+Int ShapedText::previousOrEqualBoundary(
+    Int position,
+    TextBoundaryMarkers boundaryMarkers,
+    bool clamp) const {
+
+    Int minPosition = 0;
+    Int maxPosition = numPositions() - 1;
+    if (position > maxPosition) {
+        position = maxPosition;
+    }
+
+    while (position >= minPosition
+           && !impl_->positions[position].boundaryMarkers().hasAll(boundaryMarkers)) {
+        --position;
+    }
+
+    if (position < minPosition) {
+        return clamp ? minPosition : -1;
+    }
+    else {
+        return position;
     }
 }
 
 // Convenient macro for checking assertions and failing with a LogicError.
 // We should eventually add this to vgc::core API
-#define VGC_EXPECT_EQ(a, b) \
-    if (!((a) == (b))) { \
-        std::string error = core::format( \
-            "Failed to satisfy condition `" #a " == " #b "`. Actual values are {} and {}.", (a), (b)); \
-        throw core::LogicError(error); \
-    } else (void)0
+#define VGC_EXPECT_EQ(a, b)                                                              \
+    if (!((a) == (b))) {                                                                 \
+        std::string error = core::format(                                                \
+            "Failed to satisfy condition `" #a " == " #b                                 \
+            "`. Actual values are {} and {}.",                                           \
+            (a),                                                                         \
+            (b));                                                                        \
+        throw core::LogicError(error);                                                   \
+    }                                                                                    \
+    else                                                                                 \
+        (void)0
 
-namespace internal {
+namespace {
 
 // Determines whether this byte is a continuation byte of a valid UTF-8 encoded
 // stream. These have the form 10xxxxxx.
 //
-bool isUtf8ContinuationByte_(char c) {
+bool isUtf8ContinuationByte(char c) {
     unsigned char c_ = static_cast<unsigned char>(c);
     return (c_ >> 6) == 2;
 }
 
-class TextBoundaryIteratorImpl {
-public:
-    TextBoundaryIteratorImpl(TextBoundaryType type, const std::string& string) :
-        q(static_cast<QTextBoundaryFinder::BoundaryType>(type),
-          QString::fromStdString(string))
-    {
-        QString qstring = q.string();
+// Computes the mapping between a UTF-16 array of QChar and the same text
+// represented as a UTF-8 array of char.
+//
+core::Array<Int>
+computeU16ToU8Map(const QChar* u16Chars, int u16Length, std::string_view u8Chars) {
 
-        // Compute number of UTF-8 positions and UTF-16 positions
-        size_t u8_length = string.size();
-        int u16_length = qstring.length();
-        Int u8_numPositions = core::int_cast<Int>(u8_length) + 1;
-        Int u16_numPositions = core::int_cast<Int>(u16_length) + 1;
+    // Compute number of UTF-8 positions and UTF-16 positions
+    size_t u8Length = u8Chars.size();
+    Int u16NumPositions = core::int_cast<Int>(u16Length) + 1;
 
-        // Reserve array size
-        u8_to_u16_.reserve(u8_numPositions);
-        u16_to_u8_.reserve(u16_numPositions);
+    // Reserve array size
+    core::Array<Int> u16ToU8;
+    u16ToU8.reserve(u16NumPositions);
 
-        // Compute UTF-8/UTF-16 index mapping
-        size_t u8_index = 0;
-        for (int i = 0; i < u16_length; ++i) {
-            int u16_index = i;
-            QChar c = qstring.at(i);
-            u16_to_u8_.append(core::int_cast<Int>(u8_index));
-            if (c.isHighSurrogate()) {
-                u16_to_u8_.append(core::int_cast<Int>(u8_index));
-                ++i;
-            }
-            u8_to_u16_.append(u16_index);
-            u8_index += 1;
-            while (u8_index < u8_length && isUtf8ContinuationByte_(string[u8_index])) {
-                u8_to_u16_.append(u16_index);
-                u8_index += 1;
-            }
+    // Compute UTF-8/UTF-16 index mapping
+    size_t u8_index = 0;
+    for (int i = 0; i < u16Length; ++i) {
+        QChar c = u16Chars[i];
+        u16ToU8.append(core::int_cast<Int>(u8_index));
+        if (c.isHighSurrogate()) {
+            u16ToU8.append(core::int_cast<Int>(u8_index));
+            ++i;
         }
-        u8_to_u16_.append(u16_length);
-        u16_to_u8_.append(core::int_cast<Int>(u8_length));
-        u8_min_ = 0;
-        u8_max_ = u8_to_u16_.length() - 1;
-        u16_min_ = 0;
-        u16_max_ = u16_to_u8_.length() - 1;
+        u8_index += 1;
+        while (u8_index < u8Length && isUtf8ContinuationByte(u8Chars[u8_index])) {
+            u8_index += 1;
+        }
+    }
+    u16ToU8.append(core::int_cast<Int>(u8Length));
+    VGC_EXPECT_EQ(u16ToU8.length(), u16NumPositions);
 
-        // Check that the array sizes are what we expect
-        VGC_EXPECT_EQ(u8_to_u16_.length(), u8_numPositions);
-        VGC_EXPECT_EQ(u16_to_u8_.length(), u16_numPositions);
+    return u16ToU8;
+}
+
+// Returns whether the given character satisfies the WSegSpace spec:
+//
+// https://www.unicode.org/reports/tr29/#WSegSpace
+// https://www.compart.com/en/unicode/category/Zs
+//
+//   WSegSpace      General_Category = Zs
+//                  and not Linebreak = Glue
+//
+// Note that "Linebreak = Glue" most likely refers to:
+//
+// http://www.unicode.org/reports/tr14/tr14-39.html#GLI
+//
+// that is, it removes the following two characters from the Zs Category:
+// - U+00A0    NO-BREAK SPACE (NBSP)
+// - U+202F    NARROW NO-BREAK SPACE (NNBSP)
+//
+// (the third Glue character, U+180E, isn't part of Zs)
+//
+bool isWSegSpace(char c) {
+    return c == ' ';
+}
+
+} // namespace
+
+TextBoundaryMarkersArray computeBoundaryMarkers(std::string_view text) {
+
+    // Note: even though the interface of QTextBoundaryFinder is
+    // iterator-based, Qt actually computes all the boundaries of the given
+    // type in one pass on construction of the QTextBoundaryFinder, and stores
+    // them in an array of QCharAttributes, see
+    // qtbase/src/corelib/text/qunicodetools_p.h:
+    //
+    //    struct QCharAttributes
+    //    {
+    //        uchar graphemeBoundary : 1;
+    //        uchar wordBreak        : 1;
+    //        uchar sentenceBoundary : 1;
+    //        uchar lineBreak        : 1;
+    //        uchar whiteSpace       : 1;
+    //        uchar wordStart        : 1;
+    //        uchar wordEnd          : 1;
+    //        uchar mandatoryBreak   : 1;
+    //    };
+    //
+    // By providing a buffer to Qt, the attributes are stored there and avoid
+    // dynamic allocations. So even though we create multiple
+    // QTextBoundaryFinder (one for each boundary type), it is actually not
+    // *too* wasteful in memory and performance. Ideally though, it would be
+    // nice if Qt would publicly expose the API in QtUnicodeTools, which allows
+    // to directly pass "options" so that all the QCharAttributes are compute
+    //
+
+    const char* u8Chars = text.data();
+    int u8Length = static_cast<int>(text.size());
+    Int u8Length_ = static_cast<Int>(u8Length);
+
+    // Convert from UTF-8 to UTF-16
+    QString qstring = QString::fromUtf8(u8Chars, u8Length);
+    const QChar* u16Chars = qstring.data();
+    int u16Length = qstring.length();
+
+    // Compute mapping between UTF-8 and UTF-16
+    core::Array<Int> u16ToU8 = computeU16ToU8Map(u16Chars, u16Length, text);
+
+    // Allocate buffers and initialize return value
+    int bufferSize = u16Length + 1;
+    unsigned char* buffer = new unsigned char[bufferSize];
+    TextBoundaryMarkersArray markers;
+    markers.resize(u8Length + 1);
+
+    // Declare temp variables
+    QTextBoundaryFinder::BoundaryType boundaryType;
+    QTextBoundaryFinder it;
+    int u16Position;
+
+    // Compute grapheme boundaries
+    boundaryType = QTextBoundaryFinder::Grapheme;
+    it = QTextBoundaryFinder(boundaryType, u16Chars, u16Length, buffer, bufferSize);
+    u16Position = it.position();
+    do {
+        Int u8Position = u16ToU8[u16Position];
+        markers[u8Position].set(TextBoundaryMarker::Grapheme);
+        u16Position = it.toNextBoundary();
+    } while (u16Position != -1);
+
+    // Compute word boundaries
+    boundaryType = QTextBoundaryFinder::Word;
+    it = QTextBoundaryFinder(boundaryType, u16Chars, u16Length, buffer, bufferSize);
+    u16Position = it.position();
+    do {
+        Int u8Position = u16ToU8[u16Position];
+        markers[u8Position].set(TextBoundaryMarker::Word);
+        if (it.boundaryReasons().testFlag(QTextBoundaryFinder::StartOfItem)) {
+            markers[u8Position].set(TextBoundaryMarker::SignificantWordStart);
+        }
+        if (it.boundaryReasons().testFlag(QTextBoundaryFinder::EndOfItem)) {
+            markers[u8Position].set(TextBoundaryMarker::SignificantWordEnd);
+        }
+        u16Position = it.toNextBoundary();
+    } while (u16Position != -1);
+
+    // Remove word boundaries between consecutive whitespaces. Indeed, Qt 5.15
+    // considers that there are word boundaries between consecutive
+    // whitespaces, but we believe it's better not to have them, and in fact a
+    // new rule to removing these was added in Unicode 11.0 (2018).
+    //
+    for (Int i = 1; i < u8Length_; ++i) {
+        if (isWSegSpace(text[i - 1]) && isWSegSpace(text[i])) {
+            markers[i].unset(TextBoundaryMarker::Word);
+            markers[i].unset(TextBoundaryMarker::SignificantWordStart);
+            markers[i].unset(TextBoundaryMarker::SignificantWordEnd);
+        }
     }
 
-    int u8_to_u16(Int p) const {
-        p = core::clamp(p, u8_min_, u8_max_);
-        return u8_to_u16_[p];
-    }
+    // Compute sentence boundaries
+    boundaryType = QTextBoundaryFinder::Sentence;
+    it = QTextBoundaryFinder(boundaryType, u16Chars, u16Length, buffer, bufferSize);
+    u16Position = it.position();
+    do {
+        Int u8Position = u16ToU8[u16Position];
+        markers[u8Position].set(TextBoundaryMarker::Sentence);
+        u16Position = it.toNextBoundary();
+    } while (u16Position != -1);
 
-    Int u16_to_u8(int p) const {
-        Int p_ = core::int_cast<Int>(p);
-        p_ = core::clamp(p_, u16_min_, u16_max_);
-        return u16_to_u8_[p_];
-    }
+    // Compute line boundaries
+    boundaryType = QTextBoundaryFinder::Line;
+    it = QTextBoundaryFinder(boundaryType, u16Chars, u16Length, buffer, bufferSize);
+    u16Position = it.position();
+    do {
+        Int u8Position = u16ToU8[u16Position];
+        markers[u8Position].set(TextBoundaryMarker::LineBreakOpportunity);
+        if (it.boundaryReasons().testFlag(QTextBoundaryFinder::MandatoryBreak)) {
+            markers[u8Position].set(TextBoundaryMarker::MandatoryLineBreak);
+        }
+        if (it.boundaryReasons().testFlag(QTextBoundaryFinder::SoftHyphen)) {
+            markers[u8Position].set(TextBoundaryMarker::SoftHyphen);
+        }
+        u16Position = it.toNextBoundary();
+    } while (u16Position != -1);
 
-    Int u8_length() const {
-        return u8_max_;
-    }
-
-    QTextBoundaryFinder q;
-
-private:
-    core::Array<int> u8_to_u16_;
-    Int u8_min_;
-    Int u8_max_;
-
-    core::Array<Int> u16_to_u8_;
-    Int u16_min_;
-    Int u16_max_;
-};
-
-} // namespace internal
-
-TextBoundaryIterator::TextBoundaryIterator(TextBoundaryType type, const std::string& string)
-{
-    impl_ = new internal::TextBoundaryIteratorImpl(type, string);
+    return markers;
 }
 
-TextBoundaryIterator::~TextBoundaryIterator()
-{
-    delete impl_;
-}
-
-bool TextBoundaryIterator::isAtBoundary() const
-{
-    return impl_->q.isAtBoundary();
-}
-
-bool TextBoundaryIterator::isValid() const
-{
-    return impl_->q.isValid();
-}
-
-Int TextBoundaryIterator::numBytes() const
-{
-    return impl_->u8_length();
-}
-
-Int TextBoundaryIterator::position() const
-{
-    int p = impl_->q.position();
-    return impl_->u16_to_u8(p);
-}
-
-void TextBoundaryIterator::setPosition(Int position)
-{
-    int p = impl_->u8_to_u16(position);
-    impl_->q.setPosition(p);
-}
-
-void TextBoundaryIterator::toEnd()
-{
-    impl_->q.toEnd();
-}
-
-Int TextBoundaryIterator::toNextBoundary()
-{
-    int p = impl_->q.toNextBoundary();
-    return (p == -1) ? -1 : impl_->u16_to_u8(p);
-}
-
-Int TextBoundaryIterator::toPreviousBoundary()
-{
-    int p = impl_->q.toPreviousBoundary();
-    return (p == -1) ? -1 : impl_->u16_to_u8(p);
-}
-
-void TextBoundaryIterator::toStart()
-{
-    impl_->q.toStart();
-}
-
-TextBoundaryType TextBoundaryIterator::type() const
-{
-    return static_cast<TextBoundaryType>(impl_->q.type());
-}
-
-} // namespace graphics
-} // namespace vgc
+} // namespace vgc::graphics

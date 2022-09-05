@@ -16,20 +16,15 @@
 
 #include <vgc/ui/event.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
-Event::Event() :
-    Object()
-{
-
+Event::Event()
+    : Object() {
 }
 
 /* static */
-EventPtr Event::create()
-{
+EventPtr Event::create() {
     return EventPtr(new Event());
 }
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui

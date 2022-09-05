@@ -23,18 +23,14 @@
 #include <vgc/dom/node.h>
 #include <vgc/dom/xmlformattingstyle.h>
 
-namespace vgc {
-namespace dom {
+namespace vgc::dom {
 
 /// Writes spaces and/or tabs to the given output stream \p out in order to
 /// correctly indent start/end XML tags, based on the given XML formatting \p
 /// style and \p indentLevel.
 ///
-template <typename OutputStream>
-void writeIndent(OutputStream& out,
-                 const XmlFormattingStyle& style,
-                 int indentLevel)
-{
+template<typename OutputStream>
+void writeIndent(OutputStream& out, const XmlFormattingStyle& style, int indentLevel) {
     char c = (style.indentStyle == XmlIndentStyle::Spaces) ? ' ' : '\t';
     out << std::string(indentLevel * style.indentSize, c);
 }
@@ -43,11 +39,12 @@ void writeIndent(OutputStream& out,
 /// correctly indent XML attributes, based on the given XML formatting \p style
 /// and \p indentLevel.
 ///
-template <typename OutputStream>
-void writeAttributeIndent(OutputStream& out,
-                          const XmlFormattingStyle& style,
-                          int indentLevel)
-{
+template<typename OutputStream>
+void writeAttributeIndent(
+    OutputStream& out,
+    const XmlFormattingStyle& style,
+    int indentLevel) {
+
     char c = (style.indentStyle == XmlIndentStyle::Spaces) ? ' ' : '\t';
     out << std::string(indentLevel * style.indentSize + style.attributeIndentSize, c);
 }
@@ -56,12 +53,13 @@ void writeAttributeIndent(OutputStream& out,
 /// stream \p out, respecting the given XML formatting \p style and current \p
 /// indentLevel.
 ///
-template <typename OutputStream>
-void writeChildren(OutputStream& out,
-                   const XmlFormattingStyle& style,
-                   int indentLevel,
-                   const Node* node)
-{
+template<typename OutputStream>
+void writeChildren(
+    OutputStream& out,
+    const XmlFormattingStyle& style,
+    int indentLevel,
+    const Node* node) {
+
     for (Node* child : node->children()) {
         if (Element* element = Element::cast(child)) {
             writeIndent(out, style, indentLevel);
@@ -79,7 +77,6 @@ void writeChildren(OutputStream& out,
     }
 }
 
-} // namespace dom
-} // namespace vgc
+} // namespace vgc::dom
 
 #endif // VGC_DOM_IO_H

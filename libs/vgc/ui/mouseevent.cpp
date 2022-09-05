@@ -16,21 +16,26 @@
 
 #include <vgc/ui/mouseevent.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
-MouseEvent::MouseEvent(const geometry::Vec2f& pos) :
-    Event(),
-    pos_(pos)
-{
+MouseEvent::MouseEvent(
+    MouseButton button,
+    const geometry::Vec2f& position,
+    ModifierKeys modifierKeys)
 
+    : Event()
+    , button_(button)
+    , position_(position)
+    , modifierKeys_(modifierKeys) {
 }
 
 /* static */
-MouseEventPtr MouseEvent::create(const geometry::Vec2f& pos)
-{
-    return MouseEventPtr(new MouseEvent(pos));
+MouseEventPtr MouseEvent::create(
+    MouseButton button,
+    const geometry::Vec2f& position,
+    ModifierKeys modifierKeys) {
+
+    return MouseEventPtr(new MouseEvent(button, position, modifierKeys));
 }
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui

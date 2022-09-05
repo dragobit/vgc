@@ -20,8 +20,7 @@
 #include <vgc/core/exceptions.h>
 #include <vgc/graphics/api.h>
 
-namespace vgc {
-namespace graphics {
+namespace vgc::graphics {
 
 /// \class vgc::graphics::FontError
 /// \brief Raised when there is an error related to fonts.
@@ -33,10 +32,11 @@ private:
 public:
     /// Constructs a FontError with the given \p reason.
     ///
-    explicit FontError(const std::string& reason) : core::RuntimeError(reason) {}
+    explicit FontError(const std::string& reason)
+        : core::RuntimeError(reason) {
+    }
 };
 
-} // namespace graphics
-} // namespace vgc
+} // namespace vgc::graphics
 
 #endif // VGC_GRAPHICS_EXCEPTIONS_H

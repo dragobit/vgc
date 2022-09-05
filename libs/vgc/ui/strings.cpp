@@ -16,41 +16,43 @@
 
 #include <vgc/ui/strings.h>
 
-namespace vgc {
-namespace ui {
-namespace strings {
+namespace vgc::ui::strings {
+
+// Widgets
+// -------
 
 const core::StringId Button("Button");
+const core::StringId ColorListView("ColorListView");
+const core::StringId ColorListViewItem("ColorListViewItem");
 const core::StringId ColorPalette("ColorPalette");
+const core::StringId ColorPaletteSelector("ColorPaletteSelector");
 const core::StringId Flex("Flex");
+const core::StringId Grid("Grid");
 const core::StringId Label("Label");
 const core::StringId LineEdit("LineEdit");
+const core::StringId Menu("Menu");
+const core::StringId MenuBar("MenuBar");
+const core::StringId Plot2d("Plot2d");
+const core::StringId Widget("Widget");
 
-const core::StringId background_color("background-color");
-const core::StringId background_color_on_hover("background-color-on-hover");
-const core::StringId border_radius("border-radius");
-const core::StringId margin_bottom("margin-bottom");
-const core::StringId margin_left("margin-left");
-const core::StringId margin_right("margin-right");
-const core::StringId margin_top("margin-top");
-const core::StringId padding_bottom("padding-bottom");
-const core::StringId padding_left("padding-left");
-const core::StringId padding_right("padding-right");
-const core::StringId padding_top("padding-top");
-const core::StringId pixel_hinting("pixel-hinting");
-const core::StringId preferred_height("preferred-height");
+// Properties
+// ----------
+
 const core::StringId preferred_width("preferred-width");
-const core::StringId shrink_height("shrink-height");
-const core::StringId shrink_width("shrink-width");
-const core::StringId stretch_height("stretch-height");
-const core::StringId stretch_width("stretch-width");
-const core::StringId text_color("text-color");
+const core::StringId preferred_height("preferred-height");
+const core::StringId column_gap("column-gap");
+const core::StringId row_gap("row-gap");
+const core::StringId grid_auto_columns("grid-auto-columns");
+const core::StringId grid_auto_rows("grid-auto-rows");
+const core::StringId horizontal_stretch("horizontal-stretch");
+const core::StringId horizontal_shrink("horizontal-shrink");
+const core::StringId vertical_stretch("vertical-stretch");
+const core::StringId vertical_shrink("vertical-shrink");
 
-const core::StringId auto_("auto");
-const core::StringId inherit("inherit");
-const core::StringId normal("normal");
-const core::StringId off("off");
+// Style classes / pseudo-classes
+// ------------------------------
 
-} // namespace strings
-} // namespace ui
-} // namespace vgc
+const core::StringId hovered("hovered");
+const core::StringId pressed("pressed");
+
+} // namespace vgc::ui::strings

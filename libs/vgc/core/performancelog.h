@@ -23,8 +23,7 @@
 #include <vgc/core/object.h>
 #include <vgc/core/stopwatch.h>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
 VGC_DECLARE_OBJECT(PerformanceLog);
 VGC_DECLARE_OBJECT(PerformanceLogParams);
@@ -234,36 +233,31 @@ public:
 
     /// Returns the parent of log entry, if any.
     ///
-    PerformanceLog* parent() const
-    {
+    PerformanceLog* parent() const {
         return cast_(parentObject());
     }
 
     /// Returns the first child of this log, if any.
     ///
-    PerformanceLog* firstChild() const
-    {
+    PerformanceLog* firstChild() const {
         return cast_(firstChildObject());
     }
 
     /// Returns the last child of this log, if any.
     ///
-    PerformanceLog* lastChild() const
-    {
+    PerformanceLog* lastChild() const {
         return cast_(lastChildObject());
     }
 
     /// Returns the previous sibling of this log, if any.
     ///
-    PerformanceLog* previousSibling() const
-    {
+    PerformanceLog* previousSibling() const {
         return cast_(previousSiblingObject());
     }
 
     /// Returns the next sibling of this log, if any.
     ///
-    PerformanceLog* nextSibling() const
-    {
+    PerformanceLog* nextSibling() const {
         return cast_(nextSiblingObject());
     }
 
@@ -350,7 +344,6 @@ private:
     Stopwatch stopwatch_;
 };
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core
 
 #endif // VGC_CORE_PERFORMANCELOG_H

@@ -17,6 +17,7 @@ vgc_add_library(core
         compiler.h
         dll.h
         exceptions.h
+        flags.h
         format.h
         history.h
         innercore.h
@@ -36,8 +37,8 @@ vgc_add_library(core
         stringid.h
         templateutil.h
 
-        internal/containerutil.h
-        internal/signal.h
+        detail/containerutil.h
+        detail/signal.h
 
     CPP_FILES
         algorithm.cpp
@@ -58,7 +59,7 @@ vgc_add_library(core
         stopwatch.cpp
         stringid.cpp
 
-        internal/signal.cpp
+        detail/signal.cpp
 
     NATVIS_FILES
         tools/vgccore.natvis

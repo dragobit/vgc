@@ -22,32 +22,30 @@
 
 #include <vgc/widgets/api.h>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
 /// \class vgc::widgets::ToggleViewAction
 /// \brief A subclass of QAction to toggle visibility of a QWidget.
 ///
-class VGC_WIDGETS_API ToggleViewAction : public QAction
-{
+class VGC_WIDGETS_API ToggleViewAction : public QAction {
+private:
     Q_OBJECT
 
 public:
     /// Construct the ToggleViewAction.
     ///
     explicit ToggleViewAction(
-            const QString& text,
-            QWidget* widget,
-            QObject* parent = nullptr);
+        const QString& text,
+        QWidget* widget,
+        QObject* parent = nullptr);
 
-private Q_SLOT:
+private Q_SLOTS:
     void onToggled_(bool checked);
 
 private:
     QWidget* widget_;
 };
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets
 
 #endif // VGC_WIDGETS_TOGGLEVIEWACTION_H

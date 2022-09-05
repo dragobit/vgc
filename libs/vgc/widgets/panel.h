@@ -23,8 +23,7 @@
 #include <vgc/widgets/paneltitlebar.h>
 #include <vgc/widgets/toggleviewaction.h>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
 /// \class vgc::widgets::Panel
 /// \brief A widget that can be added to a PanelArea, typically on the side
@@ -34,8 +33,10 @@ namespace widgets {
 /// the overall interface design of VGC. Panels are typically created by calling
 /// CentralWidget::addPanel().
 ///
-class VGC_WIDGETS_API Panel : public QFrame // Note: QFrame defines the enum value QFrame::Panel.
-{                                           // Beware of name conflicts!
+// Note: QFrame defines the enum value QFrame::Panel. Beware of name conflicts!
+//
+class VGC_WIDGETS_API Panel : public QFrame {
+private:
     Q_OBJECT
 
 public:
@@ -85,7 +86,6 @@ private:
     ToggleViewAction* toggleViewAction_;
 };
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets
 
 #endif // VGC_WIDGETS_PANEL_H

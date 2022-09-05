@@ -26,14 +26,19 @@
 #include <vgc/core/python.h>
 #include <vgc/core/random.h>
 #include <vgc/dom/document.h>
-#include <vgc/ui/lineedit.h>
-#include <vgc/ui/window.h>
+#include <vgc/ui/button.h>
 #include <vgc/ui/column.h>
+#include <vgc/ui/grid.h>
+#include <vgc/ui/label.h>
+#include <vgc/ui/lineedit.h>
+#include <vgc/ui/overlayarea.h>
+#include <vgc/ui/plot2d.h>
+#include <vgc/ui/qtutil.h>
 #include <vgc/ui/row.h>
+#include <vgc/ui/window.h>
 #include <vgc/widgets/font.h>
 #include <vgc/widgets/mainwindow.h>
 #include <vgc/widgets/openglviewer.h>
-#include <vgc/widgets/qtutil.h>
 #include <vgc/widgets/stylesheets.h>
 
 namespace py = pybind11;
@@ -56,15 +61,15 @@ void runtimePatchQt() {
 }
 #endif
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char* argv[]) {
+
 #ifdef VGC_QOPENGL_EXPERIMENT
     QGuiApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 #endif
 
     // Conversion between QString and std::string.
-    using vgc::widgets::fromQt;
-    using vgc::widgets::toQt;
+    using vgc::ui::fromQt;
+    using vgc::ui::toQt;
 
     // Init OpenGL. Must be called before QApplication creation. See Qt doc:
     //
@@ -74,7 +79,7 @@ int main(int argc, char* argv[])
     // ensure that resource sharing between contexts stays functional as all
     // internal contexts are created using the correct version and profile.
     //
-    vgc::widgets::OpenGLViewer::init();
+    //vgc::widgets::OpenGLViewer::init();
 
     // Creates the QApplication
     // XXX We should create a vgc::???::Application class for code sharing
@@ -145,9 +150,88 @@ int main(int argc, char* argv[])
     vgc::core::PseudoRandomUniform<size_t> randomCount(0, 100, seed2);
 
     vgc::ui::ColumnPtr col = vgc::ui::Column::create();
+
+    //vgc::ui::MenuBar* menuBar = col->createChild<vgc::ui::MenuBar>();
+
+    vgc::ui::Grid* gridTest = col->createChild<vgc::ui::Grid>();
+    gridTest->setStyleSheet(".Grid { column-gap: 30dp; row-gap: 10dp; }");
+    for (vgc::Int i = 0; i < 2; ++i) {
+        for (vgc::Int j = 0; j < 3; ++j) {
+            vgc::ui::LineEditPtr le = vgc::ui::LineEdit::create();
+            std::string sheet(
+                ".LineEdit { text-color: rgb(50, 232, 211); preferred-width: ");
+            sheet += vgc::core::toString(1 + j);
+            sheet += "00dp; horizontal-stretch: ";
+            sheet += vgc::core::toString(j + 1);
+            sheet += "; vertical-stretch: 0; }";
+            le->setStyleSheet(sheet);
+            le->setText("test");
+            gridTest->setWidgetAt(le.get(), i, j);
+        }
+    }
+    gridTest->widgetAt(0, 0)->setStyleSheet(
+        ".LineEdit { text-color: rgb(255, 255, 50); vertical-stretch: 0; "
+        "preferred-width: 127dp; padding-left: 30dp; margin-left: 80dp; "
+        "horizontal-stretch: 0; horizontal-shrink: 1; }");
+    gridTest->widgetAt(0, 1)->setStyleSheet(
+        ".LineEdit { text-color: rgb(40, 255, 150); vertical-stretch: 0; "
+        "preferred-width: 128dp; horizontal-stretch: 20; }");
+    gridTest->widgetAt(1, 0)->setStyleSheet(
+        ".LineEdit { text-color: rgb(40, 255, 150); vertical-stretch: 0; "
+        "preferred-width: 127dp; horizontal-shrink: 1;}");
+    gridTest->widgetAt(1, 1)->setStyleSheet(
+        ".LineEdit { text-color: rgb(255, 255, 50); vertical-stretch: 0; "
+        "preferred-width: 128dp; padding-left: 30dp; horizontal-stretch: 0; }");
+    gridTest->widgetAt(0, 2)->setStyleSheet(
+        ".LineEdit { text-color: rgb(255, 100, 80); vertical-stretch: 0; "
+        "preferred-width: 231dp; horizontal-stretch: 2; }");
+    gridTest->requestGeometryUpdate();
+
+    vgc::ui::Plot2d* plot2d = col->createChild<vgc::ui::Plot2d>();
+    plot2d->setNumYs(16);
+    // clang-format off
+    plot2d->appendDataPoint( 0.0f,  9.f,  9.f,  9.f,  9.f,  9.f,  9.f,  9.f,  9.f,  4.f,  5.f, 11.f,  4.f,  4.f,  5.f, 11.f,  4.f);
+    plot2d->appendDataPoint( 1.0f,  5.f,  7.f,  2.f,  5.f,  5.f,  7.f,  2.f,  5.f,  7.f,  7.f,  8.f,  7.f,  7.f,  7.f,  8.f,  7.f);
+    plot2d->appendDataPoint( 4.0f, 10.f,  1.f,  4.f, 10.f, 10.f,  1.f,  4.f, 10.f,  9.f,  8.f,  2.f,  9.f,  9.f,  8.f,  2.f,  9.f);
+    plot2d->appendDataPoint( 5.0f,  5.f,  4.f,  6.f,  5.f,  5.f,  4.f,  6.f,  5.f,  5.f,  6.f,  4.f,  5.f,  5.f,  6.f,  4.f,  5.f);
+    plot2d->appendDataPoint(10.0f,  8.f,  2.f,  7.f,  8.f,  8.f,  2.f,  7.f,  8.f, 10.f,  1.f,  1.f, 10.f, 10.f,  1.f,  1.f, 10.f);
+    plot2d->appendDataPoint(11.0f,  4.f,  5.f, 11.f,  4.f,  4.f,  5.f, 11.f,  4.f,  9.f,  9.f,  9.f,  9.f,  9.f,  9.f,  9.f,  9.f);
+    plot2d->appendDataPoint(12.0f,  7.f,  7.f,  8.f,  7.f,  7.f,  7.f,  8.f,  7.f,  5.f,  7.f,  2.f,  5.f,  5.f,  7.f,  2.f,  5.f);
+    plot2d->appendDataPoint(13.0f,  9.f,  8.f,  2.f,  9.f,  9.f,  8.f,  2.f,  9.f, 10.f,  1.f,  4.f, 10.f, 10.f,  1.f,  4.f, 10.f);
+    plot2d->appendDataPoint(20.0f,  5.f,  6.f,  4.f,  5.f,  5.f,  6.f,  4.f,  5.f,  5.f,  4.f,  6.f,  5.f,  5.f,  4.f,  6.f,  5.f);
+    plot2d->appendDataPoint(21.0f, 10.f,  1.f,  1.f, 10.f, 10.f,  1.f,  1.f, 10.f,  8.f,  2.f,  7.f,  8.f,  8.f,  2.f,  7.f,  8.f);
+    // clang-format on
+
+    // tests OverlayArea, Button, mapTo()
+    {
+        vgc::ui::OverlayArea* overlayTest = col->createChild<vgc::ui::OverlayArea>();
+        vgc::ui::Label* label =
+            overlayTest->createOverlayWidget<vgc::ui::Label>("you clicked here!");
+        label->setStyleSheet(".Label { background-color: rgb(20, 100, 100); "
+                             "background-color-on-hover: rgb(20, 130, 130); }");
+        vgc::ui::Grid* grid = overlayTest->createAreaWidget<vgc::ui::Grid>();
+        grid->setStyleSheet(".Grid { column-gap: 10dp; row-gap: 10dp; }");
+        for (int i = 0; i < 2; ++i) {
+            for (int j = 0; j < 4; ++j) {
+                vgc::ui::ButtonPtr button = vgc::ui::Button::create("click me");
+                grid->setWidgetAt(button.get(), i, j);
+                button->clicked().connect(
+                    [=](vgc::ui::Button* button, const vgc::geometry::Vec2f& pos) {
+                        vgc::geometry::Vec2f p = button->mapTo(overlayTest, pos);
+                        label->updateGeometry(p, vgc::geometry::Vec2f(120.f, 25.f));
+                    });
+            }
+        }
+    }
+
     int size = 10;
     for (int i = 0; i < size; ++i) {
         vgc::ui::Row* row = col->createChild<vgc::ui::Row>();
+        row->addStyleClass(vgc::core::StringId("inner"));
+        // Change style of first row
+        if (i == 0) {
+            row->setStyleSheet(".LineEdit { text-color: rgb(50, 232, 211); }");
+        }
         for (int j = 0; j < size; ++j) {
             vgc::ui::LineEdit* lineEdit = row->createChild<vgc::ui::LineEdit>();
             size_t begin = randomBegin();
@@ -160,13 +244,12 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Change style of first row
-    vgc::ui::Widget* firstRow = col->firstChild();
-    firstRow->setStyleSheet(".LineEdit { text-color: rgb(255, 100, 100); }");
+    // XXX we need this until styles get better auto-update behavior
+    col->addStyleClass(vgc::core::StringId("force-update-style"));
 
     vgc::ui::WindowPtr wnd = vgc::ui::Window::create(col);
     wnd->setTitle("VGC UI Test");
-    wnd->resize(QSize(800, 600));
+    wnd->resize(QSize(1100, 800));
     wnd->setVisible(true);
 
     // Start event loop

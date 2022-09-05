@@ -20,13 +20,12 @@
 #include <vgc/core/exceptions.h>
 #include <vgc/dom/api.h>
 
-namespace vgc {
-namespace dom {
+namespace vgc::dom {
 
 class Node;
 class Document;
 
-namespace internal {
+namespace detail {
 
 VGC_DOM_API std::string notAliveMsg(const Node* node);
 VGC_DOM_API std::string wrongDocumentMsg(const Node* n1, const Node* n2);
@@ -35,7 +34,7 @@ VGC_DOM_API std::string secondRootElementMsg(const Document* document);
 VGC_DOM_API std::string childCycleMsg(const Node* parent, const Node* child);
 VGC_DOM_API std::string replaceDocumentMsg(const Document* oldNode, const Node* newNode);
 
-} // namespace internal
+} // namespace detail
 
 /// \class vgc::dom::LogicError
 /// \brief Raised when there is a logic error detected in vgc::dom.
@@ -64,8 +63,9 @@ private:
 public:
     /// Constructs a LogicError with the given \p reason.
     ///
-    explicit LogicError(const std::string& reason) :
-        core::LogicError(reason) {}
+    explicit LogicError(const std::string& reason)
+        : core::LogicError(reason) {
+    }
 };
 
 /// \class vgc::dom::WrongDocumentError
@@ -86,8 +86,9 @@ public:
     /// Constructs a WrongDocumentError informing that the Node \p n1 and the
     /// Node \p n2 do not belong to the same Document.
     ///
-    WrongDocumentError(const Node* n1, const Node* n2) :
-        LogicError(internal::wrongDocumentMsg(n1, n2)) {}
+    WrongDocumentError(const Node* n1, const Node* n2)
+        : LogicError(detail::wrongDocumentMsg(n1, n2)) {
+    }
 };
 
 /// \class vgc::dom::HierarchyRequestError
@@ -120,7 +121,9 @@ private:
 public:
     /// Constructs a HierarchyRequestError with the given \p reason.
     ///
-    HierarchyRequestError(const std::string& reason) : LogicError(reason) {}
+    HierarchyRequestError(const std::string& reason)
+        : LogicError(reason) {
+    }
 };
 
 /// \class vgc::dom::WrongChildTypeError
@@ -143,8 +146,9 @@ public:
     /// Constructs a WrongChildTypeError informing that \p parent cannot
     /// have \p child as its child due to incompatible node types.
     ///
-    WrongChildTypeError(const Node* parent, const Node* child) :
-        HierarchyRequestError(internal::wrongChildTypeMsg(parent, child)) {}
+    WrongChildTypeError(const Node* parent, const Node* child)
+        : HierarchyRequestError(detail::wrongChildTypeMsg(parent, child)) {
+    }
 };
 
 /// \class vgc::dom::SecondRootElementError
@@ -163,8 +167,9 @@ public:
     /// Constructs a SecondRootElementError informing that the Document \p node
     /// cannot have a second root element.
     ///
-    SecondRootElementError(const Document* document) :
-        HierarchyRequestError(internal::secondRootElementMsg(document)) {}
+    SecondRootElementError(const Document* document)
+        : HierarchyRequestError(detail::secondRootElementMsg(document)) {
+    }
 };
 
 /// \class vgc::dom::ChildCycleError
@@ -184,8 +189,9 @@ public:
     /// Constructs a ChildCycleError informing that \p parent cannot have \p
     /// child as its child because \p parent is a descendant of \p child.
     ///
-    ChildCycleError(const Node* parent, const Node* child) :
-        HierarchyRequestError(internal::childCycleMsg(parent, child)) {}
+    ChildCycleError(const Node* parent, const Node* child)
+        : HierarchyRequestError(detail::childCycleMsg(parent, child)) {
+    }
 };
 
 /// \class vgc::dom::ReplaceDocumentError
@@ -204,8 +210,9 @@ public:
     /// Constructs a ReplaceDocumentError informing that \p newNode cannot
     /// replace \p oldNode because \p oldNode is the Document node.
     ///
-    ReplaceDocumentError(const Document* oldNode, const Node* newNode) :
-        HierarchyRequestError(internal::replaceDocumentMsg(oldNode, newNode)) {}
+    ReplaceDocumentError(const Document* oldNode, const Node* newNode)
+        : HierarchyRequestError(detail::replaceDocumentMsg(oldNode, newNode)) {
+    }
 };
 
 /// \class vgc::dom::RuntimeError
@@ -232,8 +239,9 @@ private:
 public:
     /// Constructs a LogicError with the given \p reason.
     ///
-    explicit RuntimeError(const std::string& reason) :
-        core::RuntimeError(reason) {}
+    explicit RuntimeError(const std::string& reason)
+        : core::RuntimeError(reason) {
+    }
 };
 
 /// \class vgc::dom::ParseError
@@ -253,7 +261,9 @@ private:
 public:
     /// Constructs a ParseError with the given \p reason.
     ///
-    ParseError(const std::string& reason) : RuntimeError(reason) {}
+    ParseError(const std::string& reason)
+        : RuntimeError(reason) {
+    }
 };
 
 /// \class vgc::dom::XmlSyntaxError
@@ -270,7 +280,9 @@ private:
 public:
     /// Constructs a XmlSyntaxError with the given \p reason.
     ///
-    XmlSyntaxError(const std::string& reason) : ParseError(reason) {}
+    XmlSyntaxError(const std::string& reason)
+        : ParseError(reason) {
+    }
 };
 
 /// \class vgc::dom::VgcSyntaxError
@@ -289,7 +301,9 @@ private:
 public:
     /// Constructs a VgcSyntaxError with the given \p reason.
     ///
-    VgcSyntaxError(const std::string& reason) : ParseError(reason) {}
+    VgcSyntaxError(const std::string& reason)
+        : ParseError(reason) {
+    }
 };
 
 /// \class vgc::dom::FileError
@@ -307,10 +321,11 @@ private:
 public:
     /// Constructs a FileError with the given \p reason.
     ///
-    FileError(const std::string& reason) : RuntimeError(reason) {}
+    FileError(const std::string& reason)
+        : RuntimeError(reason) {
+    }
 };
 
-} // namespace dom
-} // namespace vgc
+} // namespace vgc::dom
 
 #endif // VGC_DOM_EXCEPTIONS_H

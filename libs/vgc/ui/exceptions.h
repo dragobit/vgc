@@ -20,16 +20,15 @@
 #include <vgc/core/exceptions.h>
 #include <vgc/ui/api.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
 class Widget;
 
-namespace internal {
+namespace detail {
 
 VGC_UI_API std::string childCycleMsg(const Widget* parent, const Widget* child);
 
-} // namespace internal
+} // namespace detail
 
 /// \class vgc::ui::LogicError
 /// \brief Raised when there is a logic error detected in vgc::ui.
@@ -45,8 +44,9 @@ private:
 public:
     /// Constructs a LogicError with the given \p reason.
     ///
-    explicit LogicError(const std::string& reason) :
-        core::LogicError(reason) {}
+    explicit LogicError(const std::string& reason)
+        : core::LogicError(reason) {
+    }
 };
 
 /// \class vgc::ui::ChildCycleError
@@ -66,8 +66,9 @@ public:
     /// Constructs a ChildCycleError informing that \p parent cannot have \p
     /// child as its child because \p parent is a descendant of \p child.
     ///
-    ChildCycleError(const Widget* parent, const Widget* child) :
-        LogicError(internal::childCycleMsg(parent, child)) {}
+    ChildCycleError(const Widget* parent, const Widget* child)
+        : LogicError(detail::childCycleMsg(parent, child)) {
+    }
 };
 
 /// \class vgc::ui::RuntimeError
@@ -84,11 +85,11 @@ private:
 public:
     /// Constructs a LogicError with the given \p reason.
     ///
-    explicit RuntimeError(const std::string& reason) :
-        core::RuntimeError(reason) {}
+    explicit RuntimeError(const std::string& reason)
+        : core::RuntimeError(reason) {
+    }
 };
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui
 
 #endif // VGC_UI_EXCEPTIONS_H

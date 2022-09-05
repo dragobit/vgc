@@ -40,8 +40,8 @@ def replaceAutogenInfo(s, typ, n, x, suffix):
 
 def replaceTypes(s, x):
     X = x.upper()
-    for n in [2, 3, 4]:
-        for typ in ["vec", "mat", "rect"]:
+    for n in [1, 2, 3, 4]:
+        for typ in ["mat", "range", "rect", "triangle", "vec"]:
             Typ = typ.title()
             TYP = typ.upper()
             s = s.replace(f"{typ}{n}x", f"{typ}{n}{x}")
@@ -92,8 +92,12 @@ if __name__ == "__main__":
     generateVariant("mat", "3", "double")
     generateVariant("mat", "4", "float")
     generateVariant("mat", "4", "double")
+    generateVariant("range", "1", "float")
+    generateVariant("range", "1", "double")
     generateVariant("rect", "2", "float")
     generateVariant("rect", "2", "double")
+    generateVariant("triangle", "2", "float")
+    generateVariant("triangle", "2", "double")
     generateVariant("vec", "2", "float")
     generateVariant("vec", "2", "double")
     generateVariant("vec", "3", "float")

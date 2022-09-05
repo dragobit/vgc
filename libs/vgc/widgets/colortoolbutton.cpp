@@ -18,32 +18,30 @@
 
 #include <QColorDialog>
 #include <QPainter>
-#include <vgc/widgets/qtutil.h>
 
-namespace vgc {
-namespace widgets {
+#include <vgc/ui/qtutil.h>
+
+namespace vgc::widgets {
 
 ColorToolButton::ColorToolButton(
-        const core::Color& initialColor,
-        QWidget* parent,
-        ColorDialog* colorDialog) :
+    const core::Color& initialColor,
+    QWidget* parent,
+    ColorDialog* colorDialog)
 
-    QToolButton(parent),
-    color_(initialColor),
-    colorDialog_(colorDialog)
-{
+    : QToolButton(parent)
+    , color_(initialColor)
+    , colorDialog_(colorDialog) {
+
     connect(this, SIGNAL(clicked()), this, SLOT(onClicked_()));
     updateIcon();
     setFocusPolicy(Qt::NoFocus);
 }
 
-core::Color ColorToolButton::color() const
-{
+core::Color ColorToolButton::color() const {
     return color_;
 }
 
-void ColorToolButton::setColor(const core::Color& color)
-{
+void ColorToolButton::setColor(const core::Color& color) {
     if (color_ != color) {
         color_ = color;
         updateIcon();
@@ -51,8 +49,7 @@ void ColorToolButton::setColor(const core::Color& color)
     }
 }
 
-void ColorToolButton::updateIcon()
-{
+void ColorToolButton::updateIcon() {
     // Icon size
     QSize pixmapSize = iconSize();
 
@@ -67,32 +64,36 @@ void ColorToolButton::updateIcon()
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing, true);
     painter.setPen(QPen(Qt::black));
-    painter.setBrush(QBrush(toQt(color())));
+    painter.setBrush(QBrush(ui::toQt(color())));
     painter.drawEllipse(QRect(diskTopLeft, diskSize));
 
     // Set pixmap as tool icon
     setIcon(pixmap);
 }
 
-ColorDialog* ColorToolButton::colorDialog()
-{
+ColorDialog* ColorToolButton::colorDialog() {
     if (colorDialog_ == nullptr) {
         colorDialog_ = new ColorDialog(this);
-        connect(colorDialog_, &ColorDialog::destroyed,
-                this, &ColorToolButton::onClicked_);
-        connect(colorDialog_, &ColorDialog::currentColorChanged,
-                this, &ColorToolButton::onColorDialogCurrentColorChanged_);
-        connect(colorDialog_, &ColorDialog::finished,
-                this, &ColorToolButton::onColorDialogFinished_);
+        connect(
+            colorDialog_, &ColorDialog::destroyed, this, &ColorToolButton::onClicked_);
+        connect(
+            colorDialog_,
+            &ColorDialog::currentColorChanged,
+            this,
+            &ColorToolButton::onColorDialogCurrentColorChanged_);
+        connect(
+            colorDialog_,
+            &ColorDialog::finished,
+            this,
+            &ColorToolButton::onColorDialogFinished_);
     }
 
     return colorDialog_;
 }
 
-void ColorToolButton::onClicked_()
-{
+void ColorToolButton::onClicked_() {
     previousColor_ = color_;
-    colorDialog()->setCurrentColor(toQt(color_));
+    colorDialog()->setCurrentColor(ui::toQt(color_));
     colorDialog()->show();
     colorDialog()->raise();
     colorDialog()->activateWindow();
@@ -110,22 +111,18 @@ void ColorToolButton::onClicked_()
     }
 }
 
-void ColorToolButton::onColorDialogDestroyed_()
-{
+void ColorToolButton::onColorDialogDestroyed_() {
     colorDialog_ = nullptr;
 }
 
-void ColorToolButton::onColorDialogCurrentColorChanged_(const QColor& color)
-{
-    setColor(fromQt(color));
+void ColorToolButton::onColorDialogCurrentColorChanged_(const QColor& color) {
+    setColor(ui::fromQt(color));
 }
 
-void ColorToolButton::onColorDialogFinished_(int result)
-{
+void ColorToolButton::onColorDialogFinished_(int result) {
     if (result == QDialog::Rejected) {
         setColor(previousColor_);
     }
 }
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets

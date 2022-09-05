@@ -47,6 +47,46 @@ VGC_DECLARE_OBJECT(Action);
 VGC_DECLARE_OBJECT(Widget);
 VGC_DECLARE_OBJECT(UiWidgetEngine);
 
+// clang-format off
+
+enum class PaintOption : UInt64 {
+    None      = 0x00,
+    Resizing  = 0x01,
+    LayoutViz = 0x02,
+};
+VGC_DEFINE_FLAGS(PaintOptions, PaintOption)
+
+/// \enum vgc::ui::FocusPolicy
+/// \brief Specifies how a widget accepts keyboard focus.
+///
+enum class FocusPolicy : UInt8 {
+    Never     = 0x00, ///< Never accept focus.
+    Click     = 0x01, ///< Accept focus by clicking on the widget.
+    Wheel     = 0x02, ///< Accept focus by using the mouse wheel over the widget.
+    Tab       = 0x04, ///< Accept focus by cycling through widgets with the Tab key.
+
+    /// Preserve focus even when clicking on another widget that does not
+    /// accept click focus.
+    Sticky    = 0x80,
+};
+VGC_DEFINE_FLAGS(FocusPolicyFlags, FocusPolicy)
+
+/// \enum vgc::ui::FocusReason
+/// \brief Specifies why a widget receives or loses keyboard focus.
+///
+enum class FocusReason : UInt8 {
+    Mouse    = 0, ///<  A mouse click or wheel event occurred.
+    Tab      = 1, ///<  The user cycled through widgets with the Tab key.
+    Backtab  = 2, ///<  The user cycled through widgets, in reverse order, with the Tab key (e.g., Shift+Tab).
+    Window   = 3, ///<  The window became active or inactive.
+    Popup    = 4, ///<  A popup grabbed or released the keyboard focus.
+    Shortcut = 5, ///<  A widget gained focus via its label's buddy shortcut
+    Menu     = 6, ///<  A menu bar grabbed or released the keyboard focus.
+    Other    = 7, ///<  Another reason.
+};
+
+// clang-format on
+
 /// \class vgc::ui::Widget
 /// \brief Base class of all elements in the user interface.
 ///
@@ -55,7 +95,7 @@ private:
     VGC_OBJECT(Widget, style::StylableObject)
     VGC_PRIVATIZE_OBJECT_TREE_MUTATORS
 
-protected :
+protected:
     /// Constructs a Widget. This constructor is an implementation detail only
     /// available to derived classes. In order to create a Widget, please use
     /// the following:
@@ -77,8 +117,7 @@ public:
     ///
     /// \sa vgc::core::Object::isAlive().
     ///
-    void destroy()
-    {
+    void destroy() {
         destroyObject_();
     }
 
@@ -87,8 +126,7 @@ public:
     ///
     /// \sa firstChild(), lastChild(), previousSibling(), and nextSibling().
     ///
-    Widget* parent() const
-    {
+    Widget* parent() const {
         // TODO; the parent widget should actually be a member variable, to be
         // able to correctly handle the case of a root widget owned by another
         // object (that is, the widget would have a non-null parent object, but
@@ -104,8 +142,7 @@ public:
     ///
     /// \sa lastChild(), previousSibling(), nextSibling(), and parent().
     ///
-    Widget* firstChild() const
-    {
+    Widget* firstChild() const {
         return children_->first();
     }
 
@@ -114,8 +151,7 @@ public:
     ///
     /// \sa firstChild(), previousSibling(), nextSibling(), and parent().
     ///
-    Widget* lastChild() const
-    {
+    Widget* lastChild() const {
         return children_->last();
     }
 
@@ -124,8 +160,7 @@ public:
     ///
     /// \sa nextSibling(), parent(), firstChild(), and lastChild().
     ///
-    Widget* previousSibling() const
-    {
+    Widget* previousSibling() const {
         return static_cast<Widget*>(previousSiblingObject());
     }
 
@@ -134,8 +169,7 @@ public:
     ///
     /// \sa previousSibling(), parent(), firstChild(), and lastChild().
     ///
-    Widget* nextSibling() const
-    {
+    Widget* nextSibling() const {
         return static_cast<Widget*>(nextSiblingObject());
     }
 
@@ -149,8 +183,7 @@ public:
     /// }
     /// \endcode
     ///
-    WidgetListView children() const
-    {
+    WidgetListView children() const {
         return WidgetListView(children_);
     }
 
@@ -160,7 +193,8 @@ public:
     ///
     template<typename WidgetClass, typename... Args>
     WidgetClass* createChild(Args&&... args) {
-        core::ObjPtr<WidgetClass> child = WidgetClass::create(args...);
+        core::ObjPtr<WidgetClass> child =
+            WidgetClass::create(std::forward<Args>(args)...);
         addChild(child.get());
         return child.get();
     }
@@ -168,6 +202,10 @@ public:
     /// Adds a child to this widget.
     ///
     void addChild(Widget* child);
+
+    /// Adds the given `widget` to this widget children at position `i`.
+    ///
+    void insertChildAt(Int i, Widget* widget);
 
     /// Returns whether this Widget can be reparented with the given \p newParent.
     /// See reparent() for details.
@@ -204,8 +242,7 @@ public:
     /// Returns whether this widget is a descendant of the given \p other widget.
     /// Returns true if this widget is equal to the \p other widget.
     ///
-    bool isDescendant(const Widget* other) const
-    {
+    bool isDescendant(const Widget* other) const {
         return isDescendantObject(other);
     }
 
@@ -216,31 +253,36 @@ public:
 
     /// Returns the position of the widget relative to its parent.
     ///
-    geometry::Vec2f position() const
-    {
+    geometry::Vec2f position() const {
+        updateRootGeometry_();
         return position_;
     }
 
     /// Returns the X coordinate of the widget relative to its parent.
     ///
-    float x() const
-    {
+    float x() const {
+        updateRootGeometry_();
         return position_[0];
     }
 
     /// Returns the Y coordinate of the widget relative to its parent.
     ///
-    float y() const
-    {
+    float y() const {
+        updateRootGeometry_();
         return position_[1];
     }
+
+    /// Translates the given `position` from the coordinate system of this widget to
+    /// the system of `other`.
+    ///
+    geometry::Vec2f mapTo(Widget* other, const geometry::Vec2f& position) const;
 
     /// Returns the geometry of the widget relative to its parent.
     ///
     /// This is equivalent to `Rect2f::fromPositionSize(position(), size())`.
     ///
-    geometry::Rect2f geometry() const
-    {
+    geometry::Rect2f geometry() const {
+        updateRootGeometry_();
         return geometry::Rect2f::fromPositionSize(position_, size_);
     }
 
@@ -248,8 +290,8 @@ public:
     ///
     /// This is equivalent to `Rect2f::fromPositionSize(0, 0, size())`.
     ///
-    geometry::Rect2f rect() const
-    {
+    geometry::Rect2f rect() const {
+        updateRootGeometry_();
         return geometry::Rect2f::fromPositionSize(0, 0, size_);
     }
 
@@ -258,8 +300,8 @@ public:
     ///
     /// Unless this widget is the root widget, this method should only be
     /// called by the parent of this widget, inside updateChildrenGeometry().
-    /// In other words, setGeometry() calls updateChildrenGeometry(), which
-    /// calls setGeometry() on all its children, etc.
+    /// In other words, updateGeometry() calls updateChildrenGeometry(), which
+    /// calls updateGeometry() on all its children, etc.
     ///
     /// In order to prevent infinite loops, this function does not
     /// automatically triggers a repaint nor informs the parent widget that the
@@ -267,12 +309,23 @@ public:
     /// already knows, since it is the object that called this function in the
     /// first place.
     ///
-    void setGeometry(const geometry::Vec2f& position, const geometry::Vec2f& size);
+    void updateGeometry(const geometry::Vec2f& position, const geometry::Vec2f& size);
     /// \overload
-    void setGeometry(float x, float y, float width, float height)
-    {
-        setGeometry(geometry::Vec2f(x, y), geometry::Vec2f(width, height));
+    void updateGeometry(float x, float y, float width, float height) {
+        updateGeometry(geometry::Vec2f(x, y), geometry::Vec2f(width, height));
     }
+    /// \overload
+    void updateGeometry(const geometry::Rect2f& geometry) {
+        updateGeometry(geometry.position(), geometry.size());
+    }
+    /// \overload (keeps current size)
+    void updateGeometry(const geometry::Vec2f& position);
+    /// \overload (keeps current size)
+    void updateGeometry(float x, float y) {
+        updateGeometry(geometry::Vec2f(x, y));
+    }
+    /// \overload (keeps current position and size)
+    void updateGeometry();
 
     /// Returns the preferred size of this widget, that is, the size that
     /// layout classes will try to assign to this widget. However, note this
@@ -290,31 +343,28 @@ public:
     /// widget content.
     ///
     geometry::Vec2f preferredSize() const {
-        if (!isPreferredSizeComputed_) {
-            preferredSize_ = computePreferredSize();
-            isPreferredSizeComputed_ = true;
-        }
+        updatePreferredSize_();
         return preferredSize_;
     }
 
     /// Returns the size of the widget.
     ///
-    geometry::Vec2f size() const
-    {
+    geometry::Vec2f size() const {
+        updateRootGeometry_();
         return size_;
     }
 
     /// Returns the width of the widget.
     ///
-    float width() const
-    {
+    float width() const {
+        updateRootGeometry_();
         return size_[0];
     }
 
     /// Returns the height of the widget.
     ///
-    float height() const
-    {
+    float height() const {
+        updateRootGeometry_();
         return size_[1];
     }
 
@@ -324,29 +374,77 @@ public:
 
     /// Returns the width stretch factor of this widget.
     ///
-    float stretchWidth() const;
+    float horizontalStretch() const;
 
     /// Returns the width shrink factor of this widget.
     ///
-    float shrinkWidth() const;
+    float horizontalShrink() const;
 
     /// Returns the preferred height of this widget.
     ///
     PreferredSize preferredHeight() const;
 
+    /// Returns the preferred width of the widget for a given height.
+    ///
+    /// By default, this returns `preferredSize()[0]`, regardless of the given
+    /// height. Re-implement this function in subclasses if the preferred width
+    /// of your widget depends on its height.
+    ///
+    virtual float preferredWidthForHeight(float height) const;
+
+    /// Returns the preferred height of the widget for a given width.
+    ///
+    /// By default, this returns `preferredSize()[1]`, regardless of the given
+    /// width. Re-implement this function in subclasses if the preferred height
+    /// of your widget depends on its width.
+    ///
+    virtual float preferredHeightForWidth(float width) const;
+
     /// Returns the height stretch factor of this widget.
     ///
-    float stretchHeight() const;
+    float verticalStretch() const;
 
     /// Returns the height shrink factor of this widget.
     ///
-    float shrinkHeight() const;
+    float verticalShrink() const;
 
     /// This method should be called when the size policy or preferred size of
     /// this widget changed, to inform its parent that its geometry should be
     /// recomputed.
     ///
-    void updateGeometry();
+    void requestGeometryUpdate();
+
+    /// This signal is emitted if:
+    ///
+    /// 1. this widget is a root widget, and
+    ///
+    /// 2. this widget or any of its descendants requested its geometry to be
+    /// updated via `requestGeometryUpdate()`.
+    ///
+    /// This signal will never be re-emitted as long as updateGeometry() is not
+    /// called.
+    ///
+    /// If this signal is emitted, this means that some layout recomputation is
+    /// required somewhere in the tree, and in particular that
+    /// `preferredSize()` may have changed.
+    ///
+    /// This signal should typically be listened to by the owner of the widget
+    /// tree, for example a `Window`, or a third-party widget tree (e.g., Qt)
+    /// embedding a `vgc::ui::Widget` subtree. The typical response to the
+    /// signal is to determine an appropriate new position and size of the
+    /// widget based on its new `preferredSize()`, then call
+    /// `updateGeometry(newPosition, newSize)`.
+    ///
+    /// Note that it is best practice to defer the call to
+    /// `updateGeometry(newPosition, newSize)` until you actually need to
+    /// repaint the widget, in order to avoid multiple layout recomputations
+    /// between two consecutive repaints. If the position and size of the
+    /// widget shouldn't change, you can even skip calling `updateGeometry()`
+    /// entirely, since the `paint()` method does it automatically if a
+    /// geometry update was requested, but `updateGeometry()` hasn't been
+    /// called yet.
+    ///
+    VGC_SIGNAL(geometryUpdateRequested)
 
     /// This virtual function is called each time the widget is resized. When
     /// this function is called, the widget already has its new size.
@@ -364,26 +462,47 @@ public:
     /// changed as a result of the event. Such call can be indirect, below is a
     /// example scenario:
     ///
-    /// 1. The user clicks on a "Add Circle" button.
+    /// 1. The user clicks on an "Add Circle" button.
     /// 2. The event handler of the button emits the "clicked" signal.
     /// 3. A listener of this signal calls scene->addCircle().
     /// 4. This modifies the scene, which emits a "changed" signal.
-    /// 5. A view of the scene detects the change, and calls this->repaint().
+    /// 5. A view of the scene detects the change, and calls this->requestRepaint().
     ///
     /// Note how in this scenario, the repainted view is unrelated to the
     /// button which initially handled the event.
     ///
-    void repaint();
+    void requestRepaint();
 
-    /// This function is called whenever the widget needs to be
-    /// repainted.
+    /// This signal is emitted if:
     ///
-    void paint(graphics::Engine* engine);
+    /// 1. this widget is a root widget, and
+    ///
+    /// 2. this widget or any of its descendants requested to be repainted,
+    /// either directly via `requestRepaint()`, or indirectly via
+    /// `requestGeometryUpdate()`.
+    ///
+    /// This signal will never be re-emitted as long as paint() is not
+    /// called.
+    ///
+    /// This signal should typically be listened to by the owner of the widget
+    /// tree, for example a `Window`, or a third-party widget tree (e.g., Qt)
+    /// embedding a `vgc::ui::Widget` subtree. The typical response to the
+    /// signal is to perform some graphics engine initialization then call
+    /// `Widget::paint()` whenever possible. In a multithreaded rendering
+    /// architecture, this could mean as soon as the current render (if any) is
+    /// finished, or perhaps until the next V-Sync.
+    ///
+    VGC_SIGNAL(repaintRequested)
 
-    /// This signal is emitted when someone requested this widget, or one of
-    /// its descendent widgets, to be repainted.
+    /// This function is called by the widget container whenever the widget
+    /// needs to prepare to be repainted for a frame.
     ///
-    VGC_SIGNAL(repaintRequested);
+    void preparePaint(graphics::Engine* engine, PaintOptions flags = PaintOption::None);
+
+    /// This function is called by the widget container whenever the widget
+    /// needs to be repainted for a frame.
+    ///
+    void paint(graphics::Engine* engine, PaintOptions flags = PaintOption::None);
 
     /// Override this function if you wish to handle MouseMove events. You must
     /// return true if the event was handled, false otherwise.
@@ -400,15 +519,34 @@ public:
     ///
     virtual bool onMouseRelease(MouseEvent* event);
 
-    /// Override this function if you wish to handle MouseEnter events. You
-    /// must return true if the event was handled, false otherwise.
-    ///
-    virtual bool onMouseEnter();
+    bool isInHoveredRow() const {
+        return isInHoveredRow_;
+    }
 
-    /// Override this function if you wish to handle MouseLeave events. You
-    /// must return true if the event was handled, false otherwise.
+    void setInHoveredRow(bool isInHoveredRow) {
+        isInHoveredRow_ = isInHoveredRow;
+    }
+
+    bool isInHoveredColumn() const {
+        return isInHoveredColumn_;
+    }
+
+    void setInHoveredColumn(bool isInHoveredColumn) {
+        isInHoveredColumn_ = isInHoveredColumn;
+    }
+
+    bool isHovered() const {
+        return isHovered_;
+    }
+
+    /// Sets the hovered state of this widget and calls `onMouseEnter` or
+    /// `onMouseLeave` accordingly.
+    /// Returns true if the event was handled.
     ///
-    virtual bool onMouseLeave();
+    bool setHovered(bool hovered) {
+        isHovered_ = hovered;
+        return hovered ? onMouseEnter() : onMouseLeave();
+    }
 
     /// Returns whether this widget tree is active, that is, whether it
     /// receives key press and focus events.
@@ -435,12 +573,29 @@ public:
     ///
     /// \sa isTreeActive()
     ///
-    void setTreeActive(bool active);
+    void setTreeActive(bool active, FocusReason reason);
 
-    /// This signal is emitted when someone requested this widget, or one of
-    /// its descendent widgets, to be focused.
+    /// Gets the focus policy of this widget.
     ///
-    VGC_SIGNAL(focusRequested);
+    FocusPolicyFlags focusPolicy() const {
+        return focusPolicy_;
+    }
+
+    /// Sets the focus policy of this widget.
+    ///
+    void setFocusPolicy(FocusPolicyFlags policy) {
+        focusPolicy_ = policy;
+    }
+
+    /// This signal is emitted whenever this widget, or any of its descendants,
+    /// became the focused widget.
+    ///
+    VGC_SIGNAL(focusSet, (FocusReason, reason))
+
+    /// This signal is emitted whenever this widget, or any of its descendants,
+    /// was the focused widget but isn't anymore.
+    ///
+    VGC_SIGNAL(focusCleared, (FocusReason, reason))
 
     /// Makes this widget the focused widget of this widget tree, and emits the
     /// focusRequested signal.
@@ -465,7 +620,7 @@ public:
     ///
     /// \sa isTreeActive(), clearFocus(), focusedWidget()
     ///
-    void setFocus();
+    void setFocus(FocusReason reason);
 
     /// Removes the focus from the focused widget, if any. If the tree is
     /// active, the focused widget will receive a FocusOut event, and from now
@@ -473,7 +628,7 @@ public:
     ///
     /// Does nothing if focusedWidget() is nullptr.
     ///
-    void clearFocus();
+    void clearFocus(FocusReason reason);
 
     /// Returns which child of this widget is part of the focus branch (see
     /// setFocus() for details). The returned widget is the only child of this
@@ -487,6 +642,15 @@ public:
     ///
     Widget* focusedChild() const {
         return isFocusedWidget() ? nullptr : focus_;
+    }
+
+    /// Returns whether the focused widget is this widget or any of its descendants.
+    ///
+    /// If you wish to know whether the whole widget tree has a focused widget,
+    /// you can call root()->hasFocusedWidget();
+    ///
+    bool hasFocusedWidget() const {
+        return focus_ != nullptr;
     }
 
     /// Returns the focused widget of this widget tree, if any.
@@ -506,7 +670,7 @@ public:
         return isFocusedWidget() && isTreeActive();
     }
 
-    /// Returns whether this widget or any of its descendant is the focused
+    /// Returns whether this widget or any of its descendants is the focused
     /// widget, and this widget tree is active.
     ///
     bool hasFocusWithin() const {
@@ -526,7 +690,7 @@ public:
     ///
     /// \sa onFocusOut(), setFocus(), clearFocus(), isTreeActive()
     ///
-    virtual bool onFocusIn();
+    virtual bool onFocusIn(FocusReason reason);
 
     /// Override this function if you wish to handle FocusOut events. You must
     /// return true if the event was handled, false otherwise. The default
@@ -536,12 +700,16 @@ public:
     /// 1. isTreeActive() is true and the focused widget changed, or
     /// 2. isTreeActive() changed from true to false
     ///
+    /// This function is called just after the widget loses focus, so you can rely
+    /// on the return value of `isFocusedWidget()` to determine whether this widget is
+    /// still the focused widget despite losing focus (i.e., situation 2. above).
+    ///
     /// Note that this function is only called for the focused widget itself,
     /// not for all its ancestors.
     ///
     /// \sa onFocusIn(), setFocus(), clearFocus(), isTreeActive()
     ///
-    virtual bool onFocusOut();
+    virtual bool onFocusOut(FocusReason reason);
 
     /// Override this function if you wish to handle key press events. You must
     /// return true if the event was handled, false otherwise.
@@ -567,34 +735,47 @@ public:
         return ActionListView(actions_);
     }
 
+    /// Creates an Action, adds it to this widget, and returns the action.
+    ///
+    Action* createAction();
+
     /// Creates an Action with the given shortcut, adds it to this widget, and
     /// returns the action.
     ///
     Action* createAction(const Shortcut& shortcut);
 
-public:
-    /// This virtual function is called once before the first call to
-    /// onPaintDraw(), and should be reimplemented to create required GPU
-    /// resources.
-    ///
-    virtual void onPaintCreate(graphics::Engine* engine);
-
-    /// This virtual function is called whenever the widget needs to be
-    /// repainted. Subclasses should reimplement this, typically by issuing
-    /// draw calls.
-    ///
-    virtual void onPaintDraw(graphics::Engine* engine);
-
-    /// This virtual function is called once after the last call to
-    /// onPaintDraw(), for example before the widget is destructed, or if
-    /// switching graphics engine. It should be reimplemented to destroy the
-    /// created GPU resources.
-    ///
-    virtual void onPaintDestroy(graphics::Engine* engine);
+    // Implements StylableObject interface
+    style::StylableObject* parentStylableObject() const override;
+    style::StylableObject* firstChildStylableObject() const override;
+    style::StylableObject* lastChildStylableObject() const override;
+    style::StylableObject* previousSiblingStylableObject() const override;
+    style::StylableObject* nextSiblingStylableObject() const override;
+    const style::StyleSheet* defaultStyleSheet() const override;
 
 protected:
-    virtual void onWidgetAdded(Object*) {};
-    virtual void onWidgetRemoved(Object*) {};
+    void onStyleChanged() override;
+
+    /// Override this function if you wish to handle the addition of
+    /// child widgets to this widget.
+    ///
+    virtual void onWidgetAdded(Widget*) {
+    }
+
+    /// Override this function if you wish to handle the removal of
+    /// child widgets from this widget.
+    ///
+    virtual void onWidgetRemoved(Widget*) {
+    }
+
+    /// Override this function if you wish to handle MouseEnter events. You
+    /// must return true if the event was handled, false otherwise.
+    ///
+    virtual bool onMouseEnter();
+
+    /// Override this function if you wish to handle MouseLeave events. You
+    /// must return true if the event was handled, false otherwise.
+    ///
+    virtual bool onMouseLeave();
 
     /// Computes the preferred size of this widget based on its size policy, as
     /// well as its content and the preferred size and size policy of its
@@ -616,39 +797,90 @@ protected:
     virtual geometry::Vec2f computePreferredSize() const;
 
     /// Updates the position and size of children of this widget (by calling
-    /// the setGeometry() methods of the children), based on the current width
-    /// and height of this widget.
+    /// the updateGeometry() methods of the children), based on the current
+    /// width and height of this widget.
     ///
     virtual void updateChildrenGeometry();
 
-    // implements StylableObject interface
-    style::StylableObject* parentStylableObject() const override;
-    style::StylableObject* firstChildStylableObject() const override;
-    style::StylableObject* lastChildStylableObject() const override;
-    style::StylableObject* previousSiblingStylableObject() const override;
-    style::StylableObject* nextSiblingStylableObject() const override;
-    const style::StyleSheet* defaultStyleSheet() const override;
+    /// This virtual function is called once before the first call to
+    /// onPaintDraw(), and should be reimplemented to create required static GPU
+    /// resources.
+    ///
+    virtual void onPaintCreate(graphics::Engine* engine);
+
+    /// This virtual function is called whenever the widget needs to prepare to
+    /// be repainted. Subclasses should reimplement this, typically to update
+    /// resources.
+    ///
+    virtual void onPaintPrepare(graphics::Engine* engine, PaintOptions flags);
+
+    /// This virtual function is called whenever the widget needs to be
+    /// repainted. Subclasses should reimplement this, typically by issuing
+    /// draw calls.
+    ///
+    virtual void onPaintDraw(graphics::Engine* engine, PaintOptions flags);
+
+    /// This virtual function is called once after the last call to
+    /// onPaintDraw(), for example before the widget is destructed, or if
+    /// switching graphics engine. It should be reimplemented to destroy the
+    /// created GPU resources.
+    ///
+    virtual void onPaintDestroy(graphics::Engine* engine);
 
 private:
-    WidgetList* children_;
-    ActionList* actions_;
-    mutable geometry::Vec2f preferredSize_;
-    mutable bool isPreferredSizeComputed_;
-    geometry::Vec2f position_;
-    geometry::Vec2f size_;
-    Widget* mousePressedChild_;
-    Widget* mouseEnteredChild_;
-    bool isTreeActive_;
-    Widget* focus_; // This can be: nullptr   (when no focused widget)
-                    //              this      (when this is the focused widget)
-                    //              child ptr (when a descendant is the focused widget)
+    WidgetList* children_ = nullptr;
+    ActionList* actions_ = nullptr;
 
+    // Layout
+    mutable geometry::Vec2f preferredSize_ = {};
+    mutable bool isPreferredSizeComputed_ = false;
+    mutable bool isGeometryUpdateRequested_ = false;
+    bool isRepaintRequested_ = false;
+    geometry::Vec2f position_ = {};
+    geometry::Vec2f size_ = {};
+    geometry::Vec2f lastResizeEventSize_ = {};
+
+    void updatePreferredSize_() const {
+        if (!isPreferredSizeComputed_) {
+            preferredSize_ = computePreferredSize();
+            isPreferredSizeComputed_ = true;
+        }
+    }
+
+    void updateRootGeometry_() const {
+        Widget* root_ = root();
+        root_->updateGeometry();
+    }
+
+    void prePaintUpdateGeometry_();
+
+    // Mouse
+    Widget* mousePressedChild_ = nullptr;
+    Widget* mouseEnteredChild_ = nullptr;
+    bool isHovered_ = false;
+    bool isInHoveredRow_ = false;
+    bool isInHoveredColumn_ = false;
+
+    // Keyboard focus
+    //
+    // focus_ can have the following values:
+    // - nullptr: this means that there is no focused widget in this branch
+    // - this: the focused widget is this widget
+    // - child ptr: the focused widget is a descendant of this widget
+    //
+    bool isTreeActive_ = false;
+    FocusPolicyFlags focusPolicy_ = FocusPolicy::Never;
+    Widget* focus_ = nullptr;
+
+    // Engine
     graphics::Engine* lastPaintEngine_ = nullptr;
     void releaseEngine_();
+    void setEngine_(graphics::Engine* engine);
+    void prePaintUpdateEngine_(graphics::Engine* engine);
 
-    VGC_SLOT(onEngineAboutToBeDestroyed, releaseEngine_);
-    VGC_SLOT(onWidgetAdded_, onWidgetAdded);
-    VGC_SLOT(onWidgetRemoved_, onWidgetRemoved);
+    VGC_SLOT(onEngineAboutToBeDestroyed, releaseEngine_)
+    VGC_SLOT(onWidgetAdded_, onWidgetAdded)
+    VGC_SLOT(onWidgetRemoved_, onWidgetRemoved)
 };
 
 } // namespace vgc::ui

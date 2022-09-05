@@ -25,21 +25,22 @@
 #include <vgc/widgets/panel.h>
 #include <vgc/widgets/panelarea.h>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
 class CentralWidget;
 
 /// \class vgc::widgets::Splitter
 /// \brief The resize handles between the child widgets of a CentralWidget.
 ///
-class VGC_WIDGETS_API Splitter : public QWidget
-{
+class VGC_WIDGETS_API Splitter : public QWidget {
+private:
     Q_OBJECT
 
     Q_PROPERTY(int grabWidth READ grabWidth WRITE setGrabWidth DESIGNABLE true)
-    Q_PROPERTY(int highlightWidth READ highlightWidth WRITE setHighlightWidth DESIGNABLE true)
-    Q_PROPERTY(QColor highlightColor READ highlightColor WRITE setHighlightColor DESIGNABLE true)
+    Q_PROPERTY(
+        int highlightWidth READ highlightWidth WRITE setHighlightWidth DESIGNABLE true)
+    Q_PROPERTY(
+        QColor highlightColor READ highlightColor WRITE setHighlightColor DESIGNABLE true)
 
 public:
     /// \enum vgc::widgets::Splitter::Direction
@@ -54,8 +55,13 @@ public:
 
     /// Constructs a Splitter.
     ///
-    Splitter(CentralWidget* parent, Direction direction, bool isResizable,
-             int length, int minimumLength = 50, int maximumLength = 400);
+    Splitter(
+        CentralWidget* parent,
+        Direction direction,
+        bool isResizable,
+        int length,
+        int minimumLength = 50,
+        int maximumLength = 400);
 
     /// Returns the direction of this splitter, that is, the direction in which
     /// the splitter goes when length() increases.
@@ -178,10 +184,9 @@ private:
     CentralWidget* parent_;
     Direction direction_;
     Qt::Orientation orientation() const {
-        return (direction_ == Direction::Left ||
-                direction_ == Direction::Right)
-               ? Qt::Horizontal
-               : Qt::Vertical;
+        return (direction_ == Direction::Left || direction_ == Direction::Right)
+                   ? Qt::Horizontal
+                   : Qt::Vertical;
     }
     bool isResizable_;
     void setCursor_();
@@ -207,8 +212,8 @@ private:
 /// \class vgc::widgets::CentralWidget
 /// \brief The central widget of the MainWindow, providing toolbars and docks.
 ///
-class VGC_WIDGETS_API CentralWidget : public QWidget
-{
+class VGC_WIDGETS_API CentralWidget : public QWidget {
+private:
     Q_OBJECT
 
 public:
@@ -269,7 +274,6 @@ private:
     std::vector<Splitter*> splitters_;
 };
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets
 
 #endif // VGC_WIDGETS_CENTRALWIDGET_H

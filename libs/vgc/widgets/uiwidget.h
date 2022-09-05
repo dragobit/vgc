@@ -25,13 +25,12 @@
 
 #include <vgc/core/array.h>
 #include <vgc/graphics/idgenerator.h>
-#include <vgc/ui/internal/qopenglengine.h>
+#include <vgc/ui/detail/qopenglengine.h>
 #include <vgc/ui/widget.h>
 #include <vgc/ui/window.h>
 #include <vgc/widgets/api.h>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
 VGC_DECLARE_OBJECT(UiWidget);
 
@@ -42,8 +41,8 @@ VGC_DECLARE_OBJECT(UiWidget);
 /// which we will use while we haven't yet completely removed the dependency
 /// to QtWidgets.
 ///
-class VGC_WIDGETS_API UiWidget : public QOpenGLWidget
-{
+class VGC_WIDGETS_API UiWidget : public QOpenGLWidget {
+private:
     Q_OBJECT
 
 public:
@@ -59,11 +58,15 @@ public:
 
     /// Returns the underlying vgc::ui::Widget
     ///
-    ui::Widget* widget() { return widget_.get(); }
+    ui::Widget* widget() {
+        return widget_.get();
+    }
 
     // overrides
     QSize sizeHint() const override;
     QVariant inputMethodQuery(Qt::InputMethodQuery querty) const override;
+    bool hasHeightForWidth() const override;
+    int heightForWidth(int w) const override;
 
 protected:
     void mouseMoveEvent(QMouseEvent* event) override;
@@ -80,6 +83,7 @@ protected:
     void keyPressEvent(QKeyEvent* event) override;
     void keyReleaseEvent(QKeyEvent* event) override;
     void inputMethodEvent(QInputMethodEvent* event) override;
+    void showEvent(QShowEvent* event) override;
     bool event(QEvent* e) override;
 
 private:
@@ -88,11 +92,16 @@ private:
     void paintGL() override;
     void cleanupGL();
 
+    void onGeometryUpdateRequested();
     void onRepaintRequested();
-    void onFocusRequested();
+    void onFocusSet(ui::FocusReason reason);
+    void onFocusCleared(ui::FocusReason reason);
 
     ui::WidgetPtr widget_;
-    ui::internal::QOpenglEnginePtr engine_;
+    ui::detail::QglEnginePtr engine_;
+    graphics::SwapChainPtr swapChain_;
+    graphics::RasterizerStatePtr rasterizerState_;
+    graphics::BlendStatePtr blendState_;
 
     // Projection and view matrices
     geometry::Mat4f proj_;
@@ -100,9 +109,11 @@ private:
     // Ensure that we don't call onPaintDestroy() if onPaintCreate()
     // has not been called
     bool isInitialized_;
+
+    // Ensure that we call paint() is repaint was requested.
+    bool isRepaintRequested_ = false;
 };
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets
 
 #endif // VGC_WIDGETS_UIWIDGET_H

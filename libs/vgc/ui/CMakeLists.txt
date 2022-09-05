@@ -15,12 +15,17 @@ vgc_add_library(ui
         event.h
         exceptions.h
         flex.h
+        grid.h
         key.h
         label.h
         lineedit.h
         logcategories.h
+        margins.h
         modifierkey.h
         mouseevent.h
+        overlayarea.h
+        plot2d.h
+        qtutil.h
         row.h
         shortcut.h
         sizepolicy.h
@@ -28,8 +33,8 @@ vgc_add_library(ui
         widget.h
         window.h
 
-        internal/paintutil.h
-        internal/qopenglengine.h
+        detail/paintutil.h
+        detail/qopenglengine.h
 
     CPP_FILES
         action.cpp
@@ -40,17 +45,22 @@ vgc_add_library(ui
         event.cpp
         exceptions.cpp
         flex.cpp
+        grid.cpp
         label.cpp
         lineedit.cpp
         logcategories.cpp
+        margins.cpp
         mouseevent.cpp
+        overlayarea.cpp
+        plot2d.cpp
+        qtutil.cpp
         row.cpp
         strings.cpp
         widget.cpp
         window.cpp
 
-        internal/paintutil.cpp
-        internal/qopenglengine.cpp
+        detail/paintutil.cpp
+        detail/qopenglengine.cpp
 
     RESOURCE_FILES
         stylesheets/default.vgcss

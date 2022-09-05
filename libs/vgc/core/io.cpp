@@ -21,11 +21,9 @@
 
 #include <vgc/core/exceptions.h>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
-std::string readFile(const std::string& filePath)
-{
+std::string readFile(const std::string& filePath) {
     // Open an input file stream that throws on badbit, and check that the
     // file stream was successfully opened.
     //
@@ -91,5 +89,4 @@ std::string readFile(const std::string& filePath)
     }
 }
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core

@@ -17,26 +17,22 @@
 #include <vgc/core/exceptions.h>
 #include <vgc/core/format.h>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
-namespace internal {
+namespace detail {
 
-std::string notAliveMsg(const Object* object)
-{
-    return core::format(
-        "Object {} is not alive", core::asAddress(object));
+std::string notAliveMsg(const Object* object) {
+    return core::format("Object {} is not alive", core::asAddress(object));
 }
 
-std::string notAChildMsg(const Object* object, const Object* expectedParent)
-{
+std::string notAChildMsg(const Object* object, const Object* expectedParent) {
     return core::format(
         "Object {} is not a child of {}",
         core::asAddress(object),
         core::asAddress(expectedParent));
 }
 
-} // namespace internal
+} // namespace detail
 
 VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(LogicError)
 VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(NegativeIntegerError)
@@ -51,5 +47,4 @@ VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(RangeError)
 VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(IntegerOverflowError)
 VGC_CORE_EXCEPTIONS_DEFINE_ANCHOR(FileError)
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core

@@ -20,8 +20,7 @@
 #include <QDialog>
 #include <vgc/widgets/api.h>
 
-namespace vgc {
-namespace widgets {
+namespace vgc::widgets {
 
 /// \class vgc::widgets::Dialog
 /// \brief Subclass of QDialog specialized for VGC software
@@ -30,8 +29,8 @@ namespace widgets {
 /// vgc::widgets::Dialog, the position of the dialog will be preserve, even
 /// after being moved by the user.
 ///
-class VGC_WIDGETS_API Dialog : public QDialog
-{
+class VGC_WIDGETS_API Dialog : public QDialog {
+private:
     Q_OBJECT
 
 public:
@@ -55,7 +54,6 @@ private:
     QRect savedGeometry_;
 };
 
-} // namespace widgets
-} // namespace vgc
+} // namespace vgc::widgets
 
 #endif // VGC_WIDGETS_DIALOG_H

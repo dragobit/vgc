@@ -23,7 +23,9 @@
 #include <vgc/core/arithmetic.h>
 #include <vgc/core/templateutil.h>
 
-namespace vgc::core::internal {
+namespace vgc::core::detail {
+
+// clang-format off
 
 // Checks whether the given template argument is a forward iterator
 // whose value_type is assignable to a T
@@ -35,14 +37,16 @@ template<typename It, typename T>
 struct IsCompatibleForwardIterator<It, T, Requires<
         std::is_convertible_v<
             typename std::iterator_traits<It>::iterator_category,
-            std::forward_iterator_tag> &&
-        std::is_assignable_v<
+            std::forward_iterator_tag>
+        && std::is_assignable_v<
             T&,
-            typename std::iterator_traits<It>::value_type>>> :
-    std::true_type {};
+            typename std::iterator_traits<It>::value_type>>>
+    : std::true_type {
+};
 
 template<typename It, typename T>
-inline constexpr bool isCompatibleForwardIterator = IsCompatibleForwardIterator<It, T>::value;
+inline constexpr bool isCompatibleForwardIterator =
+    IsCompatibleForwardIterator<It, T>::value;
 
 // Checks whether the given template argument is a range whose value_type of its
 // iterators is assignable to a T
@@ -52,9 +56,9 @@ struct IsCompatibleRange : std::false_type {};
 
 template<typename Range, typename T>
 struct IsCompatibleRange<Range, T, Requires<
-        isCompatibleForwardIterator<decltype(std::declval<Range>().begin()), T> &&
-        isCompatibleForwardIterator<decltype(std::declval<Range>().end()), T>>> :
-    std::true_type {};
+        isCompatibleForwardIterator<decltype(std::declval<Range>().begin()), T>
+        && isCompatibleForwardIterator<decltype(std::declval<Range>().end()), T>>>
+    : std::true_type {};
 
 template<typename Range, typename T>
 inline constexpr bool isCompatibleRange = IsCompatibleRange<Range, T>::value;
@@ -64,6 +68,8 @@ inline constexpr bool isCompatibleRange = IsCompatibleRange<Range, T>::value;
 template<typename T>
 inline constexpr bool isNoInitConstructible = std::is_constructible_v<T, NoInit>;
 
-} // namespace vgc::core::internal
+// clang-format on
+
+} // namespace vgc::core::detail
 
 #endif // VGC_CORE_INTERNAL_CONTAINERUTIL_H

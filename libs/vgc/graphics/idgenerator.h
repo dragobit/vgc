@@ -20,8 +20,7 @@
 #include <vgc/core/array.h>
 #include <vgc/graphics/api.h>
 
-namespace vgc {
-namespace graphics {
+namespace vgc::graphics {
 
 /// \class vgc::graphics::IdGenerator
 /// \brief Generates unique integers.
@@ -41,12 +40,13 @@ namespace graphics {
 ///
 class VGC_GRAPHICS_API IdGenerator {
 public:
-    IdGenerator() : largestGenerated_(-1) {}
+    IdGenerator()
+        : largestGenerated_(-1) {
+    }
 
     /// Generates and returns a new ID.
     ///
-    Int generate()
-    {
+    Int generate() {
         if (released_.isEmpty()) {
             return ++largestGenerated_;
         }
@@ -61,8 +61,7 @@ public:
     /// stored in a stack, and never-generated IDs only start being generated
     /// once the stack is empty.
     ///
-    void release(Int id)
-    {
+    void release(Int id) {
         released_.append(id);
     }
 
@@ -71,7 +70,6 @@ private:
     core::IntArray released_;
 };
 
-} // namespace graphics
-} // namespace vgc
+} // namespace vgc::graphics
 
 #endif // VGC_GRAPHICS_IDGENERATOR_H

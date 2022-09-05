@@ -16,19 +16,14 @@
 
 #include <vgc/ui/column.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
-Column::Column() :
-    Flex(FlexDirection::Column, FlexWrap::NoWrap)
-{
-
+Column::Column()
+    : Flex(FlexDirection::Column, FlexWrap::NoWrap) {
 }
 
-ColumnPtr Column::create()
-{
+ColumnPtr Column::create() {
     return ColumnPtr(new Column());
 }
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui

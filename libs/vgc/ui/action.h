@@ -21,8 +21,7 @@
 #include <vgc/ui/api.h>
 #include <vgc/ui/shortcut.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
 VGC_DECLARE_OBJECT(Action);
 
@@ -34,7 +33,7 @@ private:
     VGC_OBJECT(Action, core::Object)
     VGC_PRIVATIZE_OBJECT_TREE_MUTATORS
 
-protected :
+protected:
     Action();
     explicit Action(const Shortcut& shortcut);
 
@@ -63,14 +62,14 @@ public:
     /// Returns the shortcut associated with this action. This can be an empty
     /// shortcut if this action has no associated shortcut.
     ///
-    const Shortcut& shortcut() const { return shortcut_; }
+    const Shortcut& shortcut() const {
+        return shortcut_;
+    }
 
 private:
     Shortcut shortcut_;
-
 };
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui
 
 #endif // VGC_UI_ACTION_H

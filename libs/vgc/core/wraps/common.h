@@ -23,12 +23,6 @@ using namespace py::literals;
 
 #include <vgc/core/object.h>
 
-namespace vgc {
-namespace core {
-
-} // namespace core
-} // namespace vgc
-
 // Make pybind11 aware of our ObjPtr<T> holder. This macro must appear at
 // global namespace. We use "true" since it is an intrusive smart pointer that
 // can be safely constructed from a raw pointer. We also specialize
@@ -36,6 +30,6 @@ namespace core {
 // the underlying pointer, which throws if the underlying pointer is null, or
 // if the object isn't alive.
 //
-PYBIND11_DECLARE_HOLDER_TYPE(T, vgc::core::ObjPtr<T>, true);
+PYBIND11_DECLARE_HOLDER_TYPE(T, vgc::core::ObjPtr<T>, true)
 
 #endif // VGC_CORE_WRAPS_COMMON_H

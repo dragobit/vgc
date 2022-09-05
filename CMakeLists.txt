@@ -114,7 +114,7 @@ elseif(MSVC)
     set(VGC_COMPILER_WARNING_FLAGS /wd4251)
     # C4996: 'strerror'/'getenv'/etc: This function or variable may be unsafe. Consider using 'strerror_s'/_dupenv_s'/etc instead.
     set(VGC_COMPILER_WARNING_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
-    set(VGC_PEDANTIC_COMPILE_FLAGS /W4)
+    set(VGC_PEDANTIC_COMPILE_FLAGS /W4 /w45038)
     set(VGC_WERROR_FLAG /WX)
 endif ()
 
@@ -225,6 +225,22 @@ message(STATUS "") # newline
 # Note that we add -DQT_NO_KEYWORDS as a private compile definition to all
 # VGC libs, which forces them to use Q_EMIT/Q_SIGNALS/Q_SLOTS, but doesn't
 # force their clients to do the same.
+#
+# If necessary, note that it is also possible to include private Qt headers,
+# for example:
+#
+#  vgc/CMakeLists.txt:
+#    find_package(Qt5Core COMPONENTS Private)
+#    set(VGC_QT_CORE_PRIVATE Qt5::CorePrivate)
+#
+#  libs/vgc/graphics/CMakeLists.txt:
+#    vgc_add_library(graphics
+#         THIRD_DEPENDENCIES
+#             ${VGC_QT_CORE}
+#             ${VGC_QT_CORE_PRIVATE}
+#
+#  libs/vgc/graphics/text.cpp:
+#    #include <QtCore/private/qunicodetools_p.h>
 #
 set(VGC_QT_VERSION "" CACHE STRING "Which Qt major version to use (latest by default)")
 message(STATUS "[Qt]")

@@ -17,11 +17,14 @@
 #ifndef VGC_UI_BUTTON_H
 #define VGC_UI_BUTTON_H
 
-#include <vgc/core/color.h>
+#include <string>
+#include <string_view>
+
+#include <vgc/geometry/vec2f.h>
+#include <vgc/graphics/richtext.h>
 #include <vgc/ui/widget.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
 VGC_DECLARE_OBJECT(Button);
 
@@ -36,7 +39,7 @@ protected:
     /// This is an implementation details. Please use
     /// Button::create(text) instead.
     ///
-    Button(const std::string& text);
+    Button(std::string_view text);
 
 public:
     /// Creates a Button.
@@ -45,22 +48,57 @@ public:
 
     /// Creates a Button with the given text.
     ///
-    static ButtonPtr create(const std::string& text);
+    static ButtonPtr create(std::string_view text);
 
     /// Returns the Button's text.
     ///
     const std::string& text() const {
-        return text_;
+        return richText_->text();
     }
 
     /// Sets the Button's text.
     ///
-    void setText(const std::string& text);
+    void setText(std::string_view text);
 
-    // reimpl
+    /// Clicks the button at position `pos` in local coordinates.
+    ///
+    /// This will cause the clicked signal to be emitted.
+    ///
+    /// \sa clicked()
+    ///
+    void click(const geometry::Vec2f& pos);
+
+    /// This signal is emitted when:
+    ///
+    /// - the button is clicked by the user (i.e., a mouse press
+    ///   was followed by a mouse release within the button), or
+    ///
+    /// - the click() method is called.
+    ///
+    /// \sa pressed(), released()
+    ///
+    VGC_SIGNAL(clicked, (Button*, button), (const geometry::Vec2f&, pos));
+
+    /// This signal is emitted when the button is pressed.
+    ///
+    /// \sa released(), clicked()
+    ///
+    VGC_SIGNAL(pressed, (Button*, button), (const geometry::Vec2f&, pos));
+
+    /// This signal is emitted when the button is released.
+    ///
+    /// \sa pressed(), clicked()
+    ///
+    VGC_SIGNAL(released, (Button*, button), (const geometry::Vec2f&, pos));
+
+    // Reimplementation of StylableObject virtual methods
+    style::StylableObject* firstChildStylableObject() const override;
+    style::StylableObject* lastChildStylableObject() const override;
+
+    // Reimplementation of Widget virtual methods
     void onResize() override;
     void onPaintCreate(graphics::Engine* engine) override;
-    void onPaintDraw(graphics::Engine* engine) override;
+    void onPaintDraw(graphics::Engine* engine, PaintOptions options) override;
     void onPaintDestroy(graphics::Engine* engine) override;
     bool onMouseMove(MouseEvent* event) override;
     bool onMousePress(MouseEvent* event) override;
@@ -72,13 +110,12 @@ protected:
     geometry::Vec2f computePreferredSize() const override;
 
 private:
-    std::string text_;
-    graphics::TrianglesBufferPtr triangles_;
-    bool reload_;
-    bool isHovered_;
+    graphics::RichTextPtr richText_;
+    graphics::GeometryViewPtr triangles_;
+    bool reload_ = true;
+    bool isPressed_ = false;
 };
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui
 
 #endif // VGC_UI_BUTTON_H

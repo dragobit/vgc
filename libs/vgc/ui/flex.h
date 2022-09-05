@@ -19,8 +19,7 @@
 
 #include <vgc/ui/widget.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
 /// \enum vgc::ui::FlexDirection
 /// \brief The direction of a flex layout
@@ -39,7 +38,7 @@ enum class FlexDirection {
 /// be added in the future.
 ///
 enum class FlexWrap {
-    NoWrap//,
+    NoWrap //,
     //Wrap,
     //WrapReverse
 };
@@ -60,15 +59,14 @@ protected:
     /// This is an implementation details. Please use
     /// Flex::create() instead.
     ///
-    Flex(FlexDirection direction = FlexDirection::Row,
-         FlexWrap wrap = FlexWrap::NoWrap);
+    Flex(FlexDirection direction = FlexDirection::Row, FlexWrap wrap = FlexWrap::NoWrap);
 
 public:
     /// Creates a Row.
     ///
     static FlexPtr create(
-            FlexDirection direction = FlexDirection::Row,
-            FlexWrap wrap = FlexWrap::NoWrap);
+        FlexDirection direction = FlexDirection::Row,
+        FlexWrap wrap = FlexWrap::NoWrap);
 
     /// Returns the FlexDirection of this Flex.
     ///
@@ -90,9 +88,13 @@ public:
     ///
     void setWrap(FlexWrap wrap);
 
+    // reimpl
+    float preferredWidthForHeight(float height) const override;
+    float preferredHeightForWidth(float width) const override;
+
 protected:
-    void onWidgetAdded(Object* child) override;
-    void onWidgetRemoved(Object* child) override;
+    void onWidgetAdded(Widget* child) override;
+    void onWidgetRemoved(Widget* child) override;
     geometry::Vec2f computePreferredSize() const override;
     void updateChildrenGeometry() override;
 
@@ -101,7 +103,6 @@ private:
     FlexWrap wrap_;
 };
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui
 
 #endif // VGC_UI_FLEXLAYOUT_H

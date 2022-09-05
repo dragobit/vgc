@@ -19,11 +19,13 @@
 #include <mutex>
 #include <unordered_set>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
-StringId::StringId(const std::string& s)
-{
+StringId::StringId() {
+    stringPtr_ = strings::empty.stringPtr_;
+}
+
+StringId::StringId(const std::string& s) {
     using StringPool = std::unordered_set<std::string>;
 
     // Declare a global string pool with static storage duration. We
@@ -60,5 +62,10 @@ StringId::StringId(const std::string& s)
     stringPtr_ = &(*iterator);
 }
 
-} // namespace core
-} // namespace vgc
+namespace strings {
+
+const StringId empty("");
+
+} // namespace strings
+
+} // namespace vgc::core

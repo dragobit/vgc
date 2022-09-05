@@ -21,8 +21,7 @@
 #include <string>
 #include <vgc/core/api.h>
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
 /// \class vgc::core::StringId
 /// \brief Represents a fast-to-compare and cheap-to-copy immutable string.
@@ -99,9 +98,12 @@ namespace core {
 /// - https://isocpp.org/wiki/faq/ctors#construct-on-first-use-v2
 /// - https://google.github.io/styleguide/cppguide.html#Static_and_Global_Variables
 ///
-class VGC_CORE_API StringId
-{
+class VGC_CORE_API StringId {
 public:
+    // Constructs a StringId representing the empty string.
+    //
+    StringId();
+
     /// Constructs a StringId representing the given string \p s.
     ///
     /// This constructor is explicit in order to avoid interning strings by
@@ -110,11 +112,13 @@ public:
     /// to call foo(std::string) without explicit cast, you need to explicitly
     /// define foo(std::string) and explicitly perform the cast there.
     ///
-    explicit StringId(const std::string& s = "");
+    explicit StringId(const std::string& s);
 
     /// Constructs a StringId representing the given string \p s.
     ///
-    explicit StringId(const char s[]) : StringId(std::string(s)) {}
+    explicit StringId(const char s[])
+        : StringId(std::string(s)) {
+    }
 
     /// Returns the string represented by this StringId.
     ///
@@ -151,10 +155,28 @@ public:
         return *stringPtr_ == other;
     }
 
+    /// Returns whether the two StringId are different.
+    ///
+    bool operator!=(const StringId& other) const {
+        return stringPtr_ != other.stringPtr_;
+    }
+
+    /// Returns whether this StringId is different from the given string.
+    ///
+    bool operator!=(const std::string& other) const {
+        return *stringPtr_ != other;
+    }
+
 private:
     friend struct std::hash<StringId>;
     const std::string* stringPtr_;
 };
+
+namespace strings {
+
+VGC_CORE_API extern const StringId empty;
+
+} // namespace strings
 
 /// Returns whether the given std::string is equal to the given StringId.
 ///
@@ -162,8 +184,13 @@ inline bool operator==(const std::string& s1, const StringId& s2) {
     return s2 == s1;
 }
 
-} // namespace core
-} // namespace vgc
+/// Returns whether the given std::string is different from the given StringId.
+///
+inline bool operator!=(const std::string& s1, const StringId& s2) {
+    return s2 != s1;
+}
+
+} // namespace vgc::core
 
 /// Writes the underlying string of the given \p stringId to the given output
 /// stream \p out.

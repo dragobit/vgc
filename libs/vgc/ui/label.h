@@ -17,10 +17,13 @@
 #ifndef VGC_UI_LABEL_H
 #define VGC_UI_LABEL_H
 
+#include <string>
+#include <string_view>
+
+#include <vgc/graphics/richtext.h>
 #include <vgc/ui/widget.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
 VGC_DECLARE_OBJECT(Label);
 
@@ -33,14 +36,9 @@ private:
 
 protected:
     /// This is an implementation details. Please use
-    /// Label::create() instead.
-    ///
-    Label();
-
-    /// This is an implementation details. Please use
     /// Label::create(text) instead.
     ///
-    Label(const std::string& text);
+    Label(std::string_view text);
 
 public:
     /// Creates a Label.
@@ -49,30 +47,39 @@ public:
 
     /// Creates a Label with the given text.
     ///
-    static LabelPtr create(const std::string& text);
+    static LabelPtr create(std::string_view text);
 
     /// Returns the label's text.
     ///
     const std::string& text() const {
-        return text_;
+        return richText_->text();
     }
 
     /// Sets the label's text.
     ///
-    void setText(const std::string& text);
+    void setText(std::string_view text);
 
-    // reimpl
+    // Reimplementation of StylableObject virtual methods
+    style::StylableObject* firstChildStylableObject() const override;
+    style::StylableObject* lastChildStylableObject() const override;
+
+    // Reimplementation of Widget virtual methods
+    void onResize() override;
     void onPaintCreate(graphics::Engine* engine) override;
-    void onPaintDraw(graphics::Engine* engine) override;
+    void onPaintDraw(graphics::Engine* engine, PaintOptions options) override;
     void onPaintDestroy(graphics::Engine* engine) override;
+    bool onMouseEnter() override;
+    bool onMouseLeave() override;
+
+protected:
+    geometry::Vec2f computePreferredSize() const override;
 
 private:
-    std::string text_;
-    graphics::TrianglesBufferPtr triangles_;
-    bool reload_;
+    graphics::RichTextPtr richText_;
+    graphics::GeometryViewPtr triangles_;
+    bool reload_ = true;
 };
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui
 
 #endif // VGC_UI_LABEL_H

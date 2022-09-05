@@ -17,14 +17,14 @@
 #ifndef VGC_UI_LINEEDIT_H
 #define VGC_UI_LINEEDIT_H
 
+#include <string>
 #include <string_view>
 
-#include <vgc/core/color.h>
-#include <vgc/graphics/text.h>
+#include <vgc/core/stopwatch.h>
+#include <vgc/graphics/richtext.h>
 #include <vgc/ui/widget.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
 
 VGC_DECLARE_OBJECT(LineEdit);
 
@@ -53,45 +53,72 @@ public:
     /// Returns the LineEdit's text.
     ///
     const std::string& text() const {
-        return text_;
+        return richText_->text();
     }
 
     /// Sets the LineEdit's text.
     ///
     void setText(std::string_view text);
 
-    // reimpl
+    /// Moves the cursor according to the given operation. If `select` is false
+    /// (the default), then the selection is cleared. If `select` is true, then
+    /// the current selection is modified to integrate the given operation
+    /// (typically, this mode is used when a user presses `Shift`).
+    ///
+    void moveCursor(graphics::RichTextMoveOperation operation, bool select = false);
+
+    // Reimplementation of StylableObject virtual methods
+    style::StylableObject* firstChildStylableObject() const override;
+    style::StylableObject* lastChildStylableObject() const override;
+
+    // Reimplementation of Widget virtual methods
     void onResize() override;
     void onPaintCreate(graphics::Engine* engine) override;
-    void onPaintDraw(graphics::Engine* engine) override;
+    void onPaintDraw(graphics::Engine* engine, PaintOptions options) override;
     void onPaintDestroy(graphics::Engine* engine) override;
     bool onMouseMove(MouseEvent* event) override;
     bool onMousePress(MouseEvent* event) override;
     bool onMouseRelease(MouseEvent* event) override;
     bool onMouseEnter() override;
     bool onMouseLeave() override;
-    bool onFocusIn() override;
-    bool onFocusOut() override;
+    bool onFocusIn(FocusReason reason) override;
+    bool onFocusOut(FocusReason reason) override;
     bool onKeyPress(QKeyEvent* event) override;
+
+    /// This signal is emitted whenever the Enter or Return key is pressed or
+    /// the line edit loses focus.
+    ///
+    VGC_SIGNAL(editingFinished)
+
+    /// This signal is emitted whenever the text in the line edit has been
+    /// edited graphically. This signal is not emitted when the text is changed
+    /// programatically, for example via setText() or clear().
+    ///
+    VGC_SIGNAL(textEdited)
 
 protected:
     geometry::Vec2f computePreferredSize() const override;
 
 private:
-    void updateBytePosition_(const geometry::Vec2f& mousePosition);
-    Int bytePosition_(const geometry::Vec2f& mousePosition);
-    void updateScroll_(float textWidth);
-    std::string text_;
-    graphics::ShapedText shapedText_;
-    graphics::TextCursor textCursor_;
-    float scrollLeft_ = 0.0f;
-    graphics::TrianglesBufferPtr triangles_;
-    bool reload_;
-    bool isHovered_;
-    bool isMousePressed_;
+    graphics::RichTextPtr richText_;
+    graphics::GeometryViewPtr triangles_;
+    bool reload_ = true;
+    ui::MouseButton mouseButton_ = ui::MouseButton::None;
+
+    // Handle double/triple clicks
+    core::Stopwatch leftMouseButtonStopwatch_;
+    Int numLeftMouseButtonClicks_ = 0;
+    geometry::Vec2f mousePositionOnPress_;
+
+    // Handle snapping to word/line boundaries on mouse move after double/triple-click
+    // and extending the selection with shift+click
+    void extendSelection_(const geometry::Vec2f& point);
+    void resetSelectionInitialPair_();
+    graphics::TextBoundaryMarkers mouseSelectionMarkers_ =
+        graphics::TextBoundaryMarker::Grapheme;
+    std::pair<Int, Int> mouseSelectionInitialPair_;
 };
 
-} // namespace ui
-} // namespace vgc
+} // namespace vgc::ui
 
 #endif // VGC_UI_LINEEDIT_H

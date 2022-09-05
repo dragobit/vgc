@@ -18,12 +18,16 @@
 
 void wrap_curve(py::module& m);
 void wrap_mat(py::module& m);
+void wrap_range(py::module& m);
 void wrap_rect(py::module& m);
+void wrap_triangle(py::module& m);
 void wrap_vec(py::module& m);
 
 PYBIND11_MODULE(geometry, m) {
     wrap_curve(m);
     wrap_mat(m);
+    wrap_range(m);
     wrap_rect(m);
+    wrap_triangle(m);
     wrap_vec(m);
 }

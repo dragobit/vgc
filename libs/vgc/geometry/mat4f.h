@@ -17,6 +17,8 @@
 // This file was automatically generated, please do not edit directly.
 // Instead, edit tools/mat4x.h then run tools/generate.py.
 
+// clang-format off
+
 #ifndef VGC_GEOMETRY_MAT4F_H
 #define VGC_GEOMETRY_MAT4F_H
 
@@ -50,30 +52,35 @@ namespace vgc::geometry {
 ///
 // VGC_GEOMETRY_API <- Omitted on purpose, otherwise we couldn't define `identity`.
 //                     Instead, we manually export functions defined in the .cpp.
-class Mat4f
-{
+class Mat4f {
 public:
     using ScalarType = float;
     static constexpr Int dimension = 4;
 
     /// Creates an uninitialized `Mat4f`.
     ///
-    Mat4f(core::NoInit) {}
+    Mat4f(core::NoInit) {
+    }
 
     /// Creates a `Mat4f` initialized to the null matrix `Mat3f(0)`.
     ///
-    constexpr Mat4f() : Mat4f(0) {}
+    constexpr Mat4f()
+        : Mat4f(0) {
+    }
 
     /// Creates a Mat4f initialized with the given arguments.
     ///
-    constexpr Mat4f(float m11, float m12, float m13, float m14,
-                    float m21, float m22, float m23, float m24,
-                    float m31, float m32, float m33, float m34,
-                    float m41, float m42, float m43, float m44)
+    constexpr Mat4f(
+        float m11, float m12, float m13, float m14,
+        float m21, float m22, float m23, float m24,
+        float m31, float m32, float m33, float m34,
+        float m41, float m42, float m43, float m44)
+
         : data_{{m11, m21, m31, m41},
                 {m12, m22, m32, m42},
                 {m13, m23, m33, m43},
-                {m14, m24, m34, m44}} {}
+                {m14, m24, m34, m44}} {
+    }
 
     /// Creates a diagonal matrix with diagonal elements equal to the given
     /// value. As specific cases, the null matrix is Mat4f(0), and the identity
@@ -83,15 +90,17 @@ public:
         : data_{{d, 0, 0, 0},
                 {0, d, 0, 0},
                 {0, 0, d, 0},
-                {0, 0, 0, d}} {}
+                {0, 0, 0, d}} {
+    }
 
     /// Creates a `Mat4f` from another `Mat<4, T>` object by performing a
     /// `static_cast` on each of its elements.
     ///
-    template<typename TMat4, VGC_REQUIRES(
-                 isMat<TMat4> &&
-                 TMat4::dimension == 4 &&
-                 !std::is_same_v<TMat4, Mat4f>)>
+    template<typename TMat4,
+        VGC_REQUIRES(
+            isMat<TMat4>
+         && TMat4::dimension == 4
+         && !std::is_same_v<TMat4, Mat4f>)>
     explicit constexpr Mat4f(const TMat4& other)
         : data_{{static_cast<float>(other(0, 0)),
                  static_cast<float>(other(1, 0)),
@@ -112,10 +121,12 @@ public:
 
     /// Defines explicitely all the elements of the matrix
     ///
-    Mat4f& setElements(float m11, float m12, float m13, float m14,
-                       float m21, float m22, float m23, float m24,
-                       float m31, float m32, float m33, float m34,
-                       float m41, float m42, float m43, float m44) {
+    Mat4f& setElements(
+        float m11, float m12, float m13, float m14,
+        float m21, float m22, float m23, float m24,
+        float m31, float m32, float m33, float m34,
+        float m41, float m42, float m43, float m44) {
+
         data_[0][0] = m11; data_[0][1] = m21; data_[0][2] = m31; data_[0][3] = m41;
         data_[1][0] = m12; data_[1][1] = m22; data_[1][2] = m32; data_[1][3] = m42;
         data_[2][0] = m13; data_[2][1] = m23; data_[2][2] = m33; data_[2][3] = m43;
@@ -127,31 +138,52 @@ public:
     /// the given value.
     ///
     Mat4f& setToDiagonal(float d) {
-        return setElements(d, 0, 0, 0,
-                           0, d, 0, 0,
-                           0, 0, d, 0,
-                           0, 0, 0, d);
+        return setElements(
+            d, 0, 0, 0,
+            0, d, 0, 0,
+            0, 0, d, 0,
+            0, 0, 0, d);
     }
 
     /// Sets this Mat4f to the zero matrix.
     ///
-    Mat4f& setToZero() { return setToDiagonal(0); }
+    Mat4f& setToZero() {
+        return setToDiagonal(0);
+    }
 
     /// Sets this Mat4f to the identity matrix.
     ///
-    Mat4f& setToIdentity() { return setToDiagonal(1); }
+    Mat4f& setToIdentity() {
+        return setToDiagonal(1);
+    }
 
     /// The identity matrix Mat4f(1).
     ///
     static const Mat4f identity;
 
-    /// Accesses the component of the Mat4f the the i-th row and j-th column.
+    /// Returns a pointer to the underlying (colum-major ordered) array of components.
     ///
-    const float& operator()(Int i, Int j) const { return data_[j][i]; }
+    const float* data() const {
+        return data_[0];
+    }
 
-    /// Mutates the component of the Mat4f the the i-th row and j-th column.
+    /// Returns a pointer to the underlying (colum-major ordered) array of components.
     ///
-    float& operator()(Int i, Int j) { return data_[j][i]; }
+    float* data() {
+        return data_[0];
+    }
+
+    /// Accesses the component of the Mat4f at the `i`-th row and `j`-th column.
+    ///
+    const float& operator()(Int i, Int j) const {
+        return data_[j][i];
+    }
+
+    /// Mutates the component of the Mat4f at the `i`-th row and `j`-th column.
+    ///
+    float& operator()(Int i, Int j) {
+        return data_[j][i];
+    }
 
     /// Adds in-place the \p other Mat4f to this Mat4f.
     ///
@@ -316,43 +348,43 @@ public:
     /// Returns whether the two given Mat4f \p m1 and \p m2 are equal.
     ///
     friend bool operator==(const Mat4f& m1, const Mat4f& m2) {
-        return m1.data_[0][0] == m2.data_[0][0] &&
-               m1.data_[0][1] == m2.data_[0][1] &&
-               m1.data_[0][2] == m2.data_[0][2] &&
-               m1.data_[0][3] == m2.data_[0][3] &&
-               m1.data_[1][0] == m2.data_[1][0] &&
-               m1.data_[1][1] == m2.data_[1][1] &&
-               m1.data_[1][2] == m2.data_[1][2] &&
-               m1.data_[1][3] == m2.data_[1][3] &&
-               m1.data_[2][0] == m2.data_[2][0] &&
-               m1.data_[2][1] == m2.data_[2][1] &&
-               m1.data_[2][2] == m2.data_[2][2] &&
-               m1.data_[2][3] == m2.data_[2][3] &&
-               m1.data_[3][0] == m2.data_[3][0] &&
-               m1.data_[3][1] == m2.data_[3][1] &&
-               m1.data_[3][2] == m2.data_[3][2] &&
-               m1.data_[3][3] == m2.data_[3][3];
+        return m1.data_[0][0] == m2.data_[0][0]
+            && m1.data_[0][1] == m2.data_[0][1]
+            && m1.data_[0][2] == m2.data_[0][2]
+            && m1.data_[0][3] == m2.data_[0][3]
+            && m1.data_[1][0] == m2.data_[1][0]
+            && m1.data_[1][1] == m2.data_[1][1]
+            && m1.data_[1][2] == m2.data_[1][2]
+            && m1.data_[1][3] == m2.data_[1][3]
+            && m1.data_[2][0] == m2.data_[2][0]
+            && m1.data_[2][1] == m2.data_[2][1]
+            && m1.data_[2][2] == m2.data_[2][2]
+            && m1.data_[2][3] == m2.data_[2][3]
+            && m1.data_[3][0] == m2.data_[3][0]
+            && m1.data_[3][1] == m2.data_[3][1]
+            && m1.data_[3][2] == m2.data_[3][2]
+            && m1.data_[3][3] == m2.data_[3][3];
     }
 
     /// Returns whether the two given Mat4f \p m1 and \p m2 are different.
     ///
     friend bool operator!=(const Mat4f& m1, const Mat4f& m2) {
-        return m1.data_[0][0] != m2.data_[0][0] ||
-               m1.data_[0][1] != m2.data_[0][1] ||
-               m1.data_[0][2] != m2.data_[0][2] ||
-               m1.data_[0][3] != m2.data_[0][3] ||
-               m1.data_[1][0] != m2.data_[1][0] ||
-               m1.data_[1][1] != m2.data_[1][1] ||
-               m1.data_[1][2] != m2.data_[1][2] ||
-               m1.data_[1][3] != m2.data_[1][3] ||
-               m1.data_[2][0] != m2.data_[2][0] ||
-               m1.data_[2][1] != m2.data_[2][1] ||
-               m1.data_[2][2] != m2.data_[2][2] ||
-               m1.data_[2][3] != m2.data_[2][3] ||
-               m1.data_[3][0] != m2.data_[3][0] ||
-               m1.data_[3][1] != m2.data_[3][1] ||
-               m1.data_[3][2] != m2.data_[3][2] ||
-               m1.data_[3][3] != m2.data_[3][3];
+        return m1.data_[0][0] != m2.data_[0][0]
+            || m1.data_[0][1] != m2.data_[0][1]
+            || m1.data_[0][2] != m2.data_[0][2]
+            || m1.data_[0][3] != m2.data_[0][3]
+            || m1.data_[1][0] != m2.data_[1][0]
+            || m1.data_[1][1] != m2.data_[1][1]
+            || m1.data_[1][2] != m2.data_[1][2]
+            || m1.data_[1][3] != m2.data_[1][3]
+            || m1.data_[2][0] != m2.data_[2][0]
+            || m1.data_[2][1] != m2.data_[2][1]
+            || m1.data_[2][2] != m2.data_[2][2]
+            || m1.data_[2][3] != m2.data_[2][3]
+            || m1.data_[3][0] != m2.data_[3][0]
+            || m1.data_[3][1] != m2.data_[3][1]
+            || m1.data_[3][2] != m2.data_[3][2]
+            || m1.data_[3][3] != m2.data_[3][3];
     }
 
     /// Returns the multiplication of this Mat4f by the given Vec4f \p v.
@@ -456,11 +488,11 @@ public:
     /// Returns a reference to this Mat4f.
     ///
     Mat4f& translate(float vx, float vy = 0, float vz = 0) {
-        Mat4f m(1, 0, 0, vx,
-                0, 1, 0, vy,
-                0, 0, 1, vz,
-                0, 0, 0, 1);
-        return (*this) *= m;
+        data_[3][0] += vx*data_[0][0] + vy*data_[1][0] + vz*data_[2][0];
+        data_[3][1] += vx*data_[0][1] + vy*data_[1][1] + vz*data_[2][1];
+        data_[3][2] += vx*data_[0][2] + vy*data_[1][2] + vz*data_[2][2];
+        data_[3][3] += vx*data_[0][3] + vy*data_[1][3] + vz*data_[2][3];
+        return *this;
     }
 
     /// Overloads `Mat4f::translate(float, float, float)`.
@@ -609,12 +641,13 @@ template <>
 struct fmt::formatter<vgc::geometry::Mat4f> {
     constexpr auto parse(format_parse_context& ctx) {
         auto it = ctx.begin(), end = ctx.end();
-        if (it != end && *it != '}')
+        if (it != end && *it != '}') {
             throw format_error("invalid format");
+        }
         return it;
     }
     template <typename FormatContext>
-    auto format(const vgc::geometry::Mat4f m, FormatContext& ctx) {
+    auto format(const vgc::geometry::Mat4f& m, FormatContext& ctx) {
         return format_to(ctx.out(),"[{}, {}, {}, {},"
                                    " {}, {}, {}, {},"
                                    " {}, {}, {}, {},"

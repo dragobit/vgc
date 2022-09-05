@@ -74,7 +74,7 @@ public:
     /// Adds a class.
     ///
     void add(core::StringId class_) {
-        if(!contains(class_)) {
+        if (!contains(class_)) {
             a_.append(class_);
         }
     }
@@ -116,7 +116,7 @@ private:
     core::Array<core::StringId> a_;
 };
 
-namespace internal {
+namespace detail {
 
 using RuleSetArray = core::Array<std::pair<StyleRuleSet*, StyleSpecificity>>;
 
@@ -150,7 +150,7 @@ struct StyleCachedData {
     }
 };
 
-} // namespace internal
+} // namespace detail
 
 /// \typedef vgc::style::StylableObject
 /// \brief Base abstract that must be implemented to use the style engine.
@@ -181,7 +181,7 @@ public:
     ///
     void setStyleSheet(std::string_view string);
 
-    /// Returns the style sheet of this StylableObject.
+    /// Returns the style sheet of this `StylableObject`.
     ///
     const StyleSheet* styleSheet() const {
         return styleSheet_.get();
@@ -189,50 +189,80 @@ public:
 
     /// Returns the style classes of this object.
     ///
-    ClassSet styleClasses() {
+    const ClassSet& styleClasses() const {
         return styleClasses_;
     }
 
-    /// Returns whether this widget is assigned the given class.
+    /// Returns whether this `StylableObject` is assigned the given style class.
     ///
     bool hasStyleClass(core::StringId class_) const {
         return styleClasses_.contains(class_);
     }
 
-    /// Adds the given class to this widget.
+    /// Adds the given style class to this `StylableObject`.
     ///
     void addStyleClass(core::StringId class_);
 
-    /// Removes the given class to this widget.
+    /// Removes the given style class to this `StylableObject`.
     ///
-    void removeStyleClass(core::StringId class_) ;
+    void removeStyleClass(core::StringId class_);
 
-    /// Toggles the given class to this widget.
+    /// Toggles the given style class to this `StylableObject`.
     ///
     void toggleStyleClass(core::StringId class_);
 
-    /// Returns the computed value of a given style property of this widget.
+    /// Returns the computed value of a given style property of this `StylableObject`.
     ///
     StyleValue style(core::StringId property) const;
 
+    /// Returns the parent `StylableObject` of this `StylableObject`.
+    ///
+    /// This method must be implemented by subclasses.
+    ///
     virtual StylableObject* parentStylableObject() const = 0;
+
+    /// Returns the first child `StylableObject` of this `StylableObject`.
+    ///
+    /// This method must be implemented by subclasses.
+    ///
     virtual StylableObject* firstChildStylableObject() const = 0;
+
+    /// Returns the last child `StylableObject` of this `StylableObject`.
+    ///
+    /// This method must be implemented by subclasses.
+    ///
     virtual StylableObject* lastChildStylableObject() const = 0;
+
+    /// Returns the previous sibling `StylableObject` of this `StylableObject`.
+    ///
+    /// This method must be implemented by subclasses.
+    ///
     virtual StylableObject* previousSiblingStylableObject() const = 0;
+
+    /// Return the next sibling `StylableObject` of this `StylableObject`.
+    ///
+    /// This method must be implemented by subclasses.
+    ///
     virtual StylableObject* nextSiblingStylableObject() const = 0;
 
-    /// A stylesheet that is used by default if no other stylesheet provides
-    /// a value for the given property.
+    /// Returns the style sheet that is used by default in case no other style
+    /// sheet provides a value for a queried property.
+    ///
+    /// This method must be implemented by subclasses.
     ///
     virtual const StyleSheet* defaultStyleSheet() const = 0;
 
-protected :
+protected:
     StylableObject();
+
+    /// This callback is called whenever the style changes.
+    ///
+    virtual void onStyleChanged();
 
 private:
     StyleSheetPtr styleSheet_;
     ClassSet styleClasses_;
-    internal::StyleCachedData styleCachedData_;
+    detail::StyleCachedData styleCachedData_;
 
     void updateStyle_();
     const StylePropertySpec* getStylePropertySpec_(core::StringId property) const;

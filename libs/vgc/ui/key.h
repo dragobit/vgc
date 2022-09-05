@@ -19,8 +19,9 @@
 
 #include <vgc/core/arithmetic.h>
 
-namespace vgc {
-namespace ui {
+namespace vgc::ui {
+
+// clang-format off
 
 /// \enum vgc::ui::Key
 /// \brief Represents a key on the keyboard.
@@ -533,7 +534,8 @@ enum class Key : UInt32 {
     Unknown                = 0x01ffffff
 };
 
-} // namespace ui
-} // namespace vgc
+// clang-format on
+
+} // namespace vgc::ui
 
 #endif // VGC_UI_KEY_H

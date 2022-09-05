@@ -24,8 +24,10 @@
 
 #include <vgc/core/array.h>
 #include <vgc/core/color.h>
+#include <vgc/core/format.h>
 #include <vgc/core/innercore.h>
 #include <vgc/core/stringid.h>
+#include <vgc/core/templateutil.h>
 
 #include <vgc/style/api.h>
 #include <vgc/style/strings.h>
@@ -33,7 +35,7 @@
 
 namespace vgc::style {
 
-namespace internal {
+namespace detail {
 class StyleParser;
 }
 
@@ -52,13 +54,13 @@ using StyleDeclarationArray = core::Array<StyleDeclaration*>;
 /// \brief The type of a StyleValue
 ///
 enum class StyleValueType : Int8 {
-    None,          ///< There is no value at all
-    Invalid,       ///< The value is invalid (e.g., parse error)
-    Inherit,       ///< The value should inherit from a parent StylableObject
-    Identifier,    ///< The value is an identifier
-    Number,        ///< The value is a number
-    String,        ///< The value is a string
-    Custom         ///< The value is a custom type
+    None,       ///< There is no value at all
+    Invalid,    ///< The value is invalid (e.g., parse error)
+    Inherit,    ///< The value should inherit from a parent StylableObject
+    Identifier, ///< The value is an identifier
+    Number,     ///< The value is a number
+    String,     ///< The value is a string
+    Custom      ///< The value is a custom type
 };
 
 /// \enum vgc::style::StyleValue
@@ -148,6 +150,12 @@ public:
         return type_;
     }
 
+    /// Returns whether the value is valid.
+    ///
+    bool isValid() const {
+        return type_ != StyleValueType::Invalid;
+    }
+
     /// Returns the StyleValue as a `float`. The behavior is undefined
     /// if the type isn't Number.
     ///
@@ -180,18 +188,16 @@ public:
     /// whose string value is equal the given string.
     ///
     bool operator==(const std::string& other) const {
-        return (type() == StyleValueType::Identifier ||
-                type() == StyleValueType::String) &&
-               std::any_cast<core::StringId>(value_) == other;
+        return (type() == StyleValueType::Identifier || type() == StyleValueType::String)
+               && std::any_cast<core::StringId>(value_) == other;
     }
 
     /// Returns whether this StyleValue is of type Identifier or String and
     /// whose string value is equal the given string.
     ///
     bool operator==(const core::StringId& other) const {
-        return (type() == StyleValueType::Identifier ||
-                type() == StyleValueType::String) &&
-               std::any_cast<core::StringId>(value_) == other;
+        return (type() == StyleValueType::Identifier || type() == StyleValueType::String)
+               && std::any_cast<core::StringId>(value_) == other;
     }
 
     /// Returns whether this `StyleValue` stores a value of type `TValue`.
@@ -212,6 +218,18 @@ public:
         return std::any_cast<TValue>(value_);
     }
 
+    /// Returns the value stored as a `TValue`. An default constructed value is
+    /// returned if the stored value is not of type `TValue`.
+    ///
+    /// Note that an `Identifier` and `String` is
+    /// stored as a `StringId`, and a `Number` is stored as a double (for now).
+    ///
+    template<typename TValue>
+    TValue valueOrDefault(const TValue& defaultValue = TValue{}) const {
+        const TValue* v = std::any_cast<TValue>(&value_);
+        return v ? *v : defaultValue;
+    }
+
 private:
     StyleValueType type_;
     std::any value_;
@@ -221,7 +239,8 @@ private:
 /// \brief The type of a function that takes as input a token range
 ///        and outputs a StyleValue.
 ///
-using StylePropertyParser = StyleValue(*)(StyleTokenIterator begin, StyleTokenIterator end);
+using StylePropertyParser =
+    StyleValue (*)(StyleTokenIterator begin, StyleTokenIterator end);
 
 /// This is the default function used for parsing properties when no
 /// StylePropertySpec exists for the given property.
@@ -234,7 +253,7 @@ using StylePropertyParser = StyleValue(*)(StyleTokenIterator begin, StyleTokenIt
 VGC_STYLE_API
 StyleValue parseStyleDefault(StyleTokenIterator begin, StyleTokenIterator end);
 
-namespace internal {
+namespace detail {
 class StylePropertySpecMaker;
 }
 
@@ -247,13 +266,15 @@ class StylePropertySpecMaker;
 /// https://www.w3.org/TR/CSS2/propidx.html
 ///
 class VGC_STYLE_API StylePropertySpec {
-public:    
+public:
     /// Creates a StylePropertySpec.
     ///
-    StylePropertySpec(core::StringId name,
-                      const StyleValue& initialValue,
-                      bool isInherited,
-                      StylePropertyParser parser)
+    StylePropertySpec(
+        core::StringId name,
+        const StyleValue& initialValue,
+        bool isInherited,
+        StylePropertyParser parser)
+
         : name_(name)
         , initialValue_(initialValue)
         , isInherited_(isInherited)
@@ -262,10 +283,12 @@ public:
 
     /// Creates a StylePropertySpec.
     ///
-    StylePropertySpec(const char* name,
-                      const StyleValue& initialValue,
-                      bool isInherited,
-                      StylePropertyParser parser)
+    StylePropertySpec(
+        const char* name,
+        const StyleValue& initialValue,
+        bool isInherited,
+        StylePropertyParser parser)
+
         : name_(name)
         , initialValue_(initialValue)
         , isInherited_(isInherited)
@@ -305,22 +328,26 @@ private:
 /// \brief Stores a table of multiple StylePropertySpec.
 ///
 class VGC_STYLE_API StylePropertySpecTable
-        : public std::enable_shared_from_this<StylePropertySpecTable> {
+    : public std::enable_shared_from_this<StylePropertySpecTable> {
 public:
-    StylePropertySpecTable() {}
+    StylePropertySpecTable() {
+    }
 
-    void insert(const char* name,
-                const StyleValue& initialValue,
-                bool isInherited,
-                StylePropertyParser parser) {
+    void insert(
+        const char* name,
+        const StyleValue& initialValue,
+        bool isInherited,
+        StylePropertyParser parser) {
         insert(core::StringId(name), initialValue, isInherited, parser);
     }
 
-    void insert(core::StringId name,
-                const StyleValue& initialValue,
-                bool isInherited,
-                StylePropertyParser parser) {
-        StylePropertySpec spec = StylePropertySpec(name, initialValue, isInherited, parser);
+    void insert(
+        core::StringId name,
+        const StyleValue& initialValue,
+        bool isInherited,
+        StylePropertyParser parser) {
+        StylePropertySpec spec =
+            StylePropertySpec(name, initialValue, isInherited, parser);
         map_.insert({name, spec});
     }
 
@@ -349,11 +376,10 @@ private:
     VGC_PRIVATIZE_OBJECT_TREE_MUTATORS
 
 public:
-
     /// Creates a stylesheet from the given specs and string.
     ///
-    static StyleSheetPtr create(const StylePropertySpecTablePtr& specs,
-                                std::string_view s);
+    static StyleSheetPtr
+    create(const StylePropertySpecTablePtr& specs, std::string_view s);
 
     /// Returns all the rule sets of this stylesheet.
     ///
@@ -369,7 +395,7 @@ private:
     StylePropertySpecTablePtr propertySpecs_;
     StyleRuleSetArray ruleSets_;
 
-    friend class internal::StyleParser;
+    friend class detail::StyleParser;
     StyleSheet();
     static StyleSheetPtr create();
 };
@@ -395,7 +421,7 @@ private:
     StyleSelectorArray selectors_;
     StyleDeclarationArray declarations_;
 
-    friend class internal::StyleParser;
+    friend class detail::StyleParser;
     StyleRuleSet();
     static StyleRuleSetPtr create();
 };
@@ -404,37 +430,88 @@ private:
 /// \brief The type of a StyleSelectorItem
 ///
 enum class StyleSelectorItemType : Int8 {
-    ClassSelector
+    // Non-combinator items don't have the 0x10 bit set
+    ClassSelector = 0x01,
+
+    // Combinator items have the 0x10 bit set
+    DescendantCombinator = 0x10,
+    ChildCombinator = 0x11
 };
+
+} // namespace vgc::style
+
+template<>
+struct fmt::formatter<vgc::style::StyleSelectorItemType>
+    : fmt::formatter<std::string_view> {
+
+    using T = vgc::style::StyleSelectorItemType;
+
+    template<typename FormatContext>
+    auto format(T type, FormatContext& ctx) {
+        std::string_view name = "UnknownStyleSelectorItemType";
+        switch (type) {
+        case T::ClassSelector:
+            name = "ClassSelector";
+            break;
+        case T::DescendantCombinator:
+            name = "DescendantCombinator";
+            break;
+        case T::ChildCombinator:
+            name = "ChildCombinator";
+            break;
+        }
+        return fmt::formatter<std::string_view>::format(name, ctx);
+    }
+};
+
+namespace vgc::style {
 
 /// \class vgc::style::StyleSelectorItem
 /// \brief One item of a StyleSelector.
 ///
-/// A style selector consists of a sequence of "items". For now, the only
-/// available item is "class selector".
+/// A style selector consists of a sequence of "items", such as class selectors and combinators.
 ///
-/// In the future, more items should be supported, such as the universal
-/// selector, combinators, pseudo classes, and perhaps attribute selectors and
-/// pseudo-elements. See:
+/// Note for now, we do not support the universal selector, the adjacent or
+/// siblings combinators, pseudo-classes, pseudo-elements, and attribute
+/// selectors, but this could be added in the future.
 ///
 /// https://www.w3.org/TR/selectors-3/#selector-syntax
 ///
 class VGC_STYLE_API StyleSelectorItem {
 public:
+    /// Creates a StyleSelectorItem of the given type and an empty name.
+    ///
+    StyleSelectorItem(StyleSelectorItemType type)
+        : type_(type)
+        , name_() {
+    }
+
     /// Creates a StyleSelectorItem of the given type and given name.
     ///
-    StyleSelectorItem(StyleSelectorItemType type, core::StringId name) :
-        type_(type), name_(name) {}
+    StyleSelectorItem(StyleSelectorItemType type, core::StringId name)
+        : type_(type)
+        , name_(name) {
+    }
 
     /// Returns the type of this StyleSelectorItem.
     ///
-    StyleSelectorItemType type() const { return type_; }
+    StyleSelectorItemType type() const {
+        return type_;
+    }
 
     /// Returns the name of this StyleSelectorItem. What this names represents
     /// depends on the type of this item. In the case of a ClassSelector, this
     /// represent the class name.
     ///
-    core::StringId name() const { return name_; }
+    core::StringId name() const {
+        return name_;
+    }
+
+    /// Returns whether this item is a combinator selector item
+    ///
+    bool isCombinator() const {
+        return core::toUnderlying(type_) & 0x10;
+    }
 
 private:
     StyleSelectorItemType type_;
@@ -456,25 +533,19 @@ public:
     ///
     bool matches(StylableObject* node);
 
-    /// Returns the specificy of the selector
+    /// Returns the specificy of the selector.
     ///
     StyleSpecificity specificity() const {
-        // TODO: compute actual specificity based on id/class/etc.
-        // It could be computed as:
-        //    2^48 * numIDs
-        //  + 2^32 * numClasses
-        //  + numTypes
-        // (note: inline styles are treated as separate layers and thus don't need
-        //        to be given higher specificity)
-        return core::int_cast<StyleSpecificity>(items_.size());
+        return specificity_;
     }
 
 private:
     core::Array<StyleSelectorItem> items_;
+    StyleSpecificity specificity_;
 
-    friend class internal::StyleParser;
-    StyleSelector();
-    static StyleSelectorPtr create();
+    friend class detail::StyleParser;
+    StyleSelector(core::Array<StyleSelectorItem>&& items);
+    static StyleSelectorPtr create(core::Array<StyleSelectorItem>&& items);
 };
 
 /// \class vgc::style::StyleDeclaration
@@ -509,7 +580,7 @@ private:
     std::string text_;
     StyleValue value_;
 
-    friend class internal::StyleParser;
+    friend class detail::StyleParser;
     StyleDeclaration();
     static StyleDeclarationPtr create();
 };

@@ -17,13 +17,12 @@
 #ifndef VGC_DOM_NODE_H
 #define VGC_DOM_NODE_H
 
-#include <vgc/core/object.h>
 #include <vgc/core/format.h>
+#include <vgc/core/object.h>
 #include <vgc/dom/api.h>
 #include <vgc/dom/exceptions.h>
 
-namespace vgc {
-namespace dom {
+namespace vgc::dom {
 
 /// \enum vgc::dom::NodeType
 /// \brief Specifies the type of a Node.
@@ -59,20 +58,23 @@ enum class NodeType {
 /// Writes the given NodeType to the output stream.
 ///
 template<typename OStream>
-void write(OStream& out, NodeType type)
-{
+void write(OStream& out, NodeType type) {
     switch (type) {
-    case NodeType::Element:     write(out, "Element");  break;
-    case NodeType::Document:    write(out, "Document"); break;
+    case NodeType::Element:
+        write(out, "Element");
+        break;
+    case NodeType::Document:
+        write(out, "Document");
+        break;
     }
 }
 
 VGC_DECLARE_OBJECT(Node);
 VGC_DECLARE_OBJECT(Document);
 
-namespace internal {
+namespace detail {
 void destroyNode(Node* node);
-} // namespace internal
+} // namespace detail
 
 /// \class vgc::dom::Node
 /// \brief Represents a node of the document Node tree.
@@ -121,8 +123,7 @@ public:
     /// Returns the owner Document of this Node. This is always guaranteed to
     /// be a non-null valid Document.
     ///
-    Document* document() const
-    {
+    Document* document() const {
         return document_;
     }
 
@@ -130,8 +131,7 @@ public:
     ///
     /// This function is safe to call even when the node is not alive.
     ///
-    NodeType nodeType() const
-    {
+    NodeType nodeType() const {
         return nodeType_;
     }
 
@@ -149,8 +149,7 @@ public:
     ///
     /// This function is safe to call even when the node is not alive.
     ///
-    static Node* cast(Node* node)
-    {
+    static Node* cast(Node* node) {
         return node;
     }
 
@@ -163,8 +162,7 @@ public:
     ///
     /// \sa firstChild(), lastChild(), previousSibling(), and nextSibling().
     ///
-    Node* parent() const
-    {
+    Node* parent() const {
         return static_cast<Node*>(parentObject());
     }
 
@@ -173,8 +171,7 @@ public:
     ///
     /// \sa lastChild(), previousSibling(), nextSibling(), and parent().
     ///
-    Node* firstChild() const
-    {
+    Node* firstChild() const {
         return static_cast<Node*>(firstChildObject());
     }
 
@@ -183,8 +180,7 @@ public:
     ///
     /// \sa firstChild(), previousSibling(), nextSibling(), and parent().
     ///
-    Node* lastChild() const
-    {
+    Node* lastChild() const {
         return static_cast<Node*>(lastChildObject());
     }
 
@@ -194,8 +190,7 @@ public:
     ///
     /// \sa nextSibling(), parent(), firstChild(), and lastChild().
     ///
-    Node* previousSibling() const
-    {
+    Node* previousSibling() const {
         return static_cast<Node*>(previousSiblingObject());
     }
 
@@ -204,8 +199,7 @@ public:
     ///
     /// \sa previousSibling(), parent(), firstChild(), and lastChild().
     ///
-    Node* nextSibling() const
-    {
+    Node* nextSibling() const {
         return static_cast<Node*>(nextSiblingObject());
     }
 
@@ -219,8 +213,7 @@ public:
     /// }
     /// \endcode
     ///
-    NodeListView children() const
-    {
+    NodeListView children() const {
         // TODO: store children in a NodeList (see ui::Widget for an example)
         return NodeListView(firstChild(), nullptr);
     }
@@ -292,8 +285,7 @@ public:
     /// Returns whether this node is a descendant of the given \p other node.
     /// Returns true if this node is equal to the \p other node.
     ///
-    bool isDescendant(const Node* other) const
-    {
+    bool isDescendant(const Node* other) const {
         return isDescendantObject(other);
     }
 
@@ -305,10 +297,9 @@ private:
     Document* document_;
     NodeType nodeType_;
 
-    friend void internal::destroyNode(Node* node);
+    friend void detail::destroyNode(Node* node);
 };
 
-} // namespace dom
-} // namespace vgc
+} // namespace vgc::dom
 
 #endif // VGC_DOM_NODE_H

@@ -18,21 +18,19 @@
 
 #include <cstdlib> // getenv
 
-namespace vgc {
-namespace core {
+namespace vgc::core {
 
-namespace
-{
+namespace {
+
 std::string basePath_;
+
 } // end namespace
 
-void setBasePath(const std::string& path)
-{
+void setBasePath(const std::string& path) {
     basePath_ = path;
 }
 
-std::string basePath()
-{
+std::string basePath() {
     if (basePath_.length() == 0) {
         char* path = std::getenv("VGCBASEPATH");
         if (path) {
@@ -45,29 +43,25 @@ std::string basePath()
     return basePath_;
 }
 
-std::string pythonPath()
-{
+std::string pythonPath() {
     // XXX use generic code to concatenate filepath, e.g.:
     //       core/fileutils.h::concatenateFilePath()
     //     or abstract this further with a core::Dir class similar to QDir.
     return basePath() + "/python";
 }
 
-std::string resourcesPath()
-{
+std::string resourcesPath() {
     // XXX use generic code to concatenate filepath, e.g.:
     //       core/fileutils.h::concatenateFilePath()
     //     or abstract this further with a core::Dir class similar to QDir.
     return basePath() + "/resources";
 }
 
-std::string resourcePath(const std::string& name)
-{
+std::string resourcePath(const std::string& name) {
     // XXX use generic code to concatenate filepath, e.g.:
     //       core/fileutils.h::concatenateFilePath()
     //     or abstract this further with a core::Dir class similar to QDir.
     return resourcesPath() + "/" + name;
 }
 
-} // namespace core
-} // namespace vgc
+} // namespace vgc::core
